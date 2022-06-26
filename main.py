@@ -12,14 +12,12 @@ def main():
 
 
 async def amain(loop):
-    code_block: str = Input().get_codeblock()
-    if "```" in code_block:
-        language, code, inputs = unwrap_code_block(code_block)
-    else:
-        lines = code_block.split("\n")
-        language = lines[0].strip()
-        code = "\n".join(lines[1:])
-        inputs = ""
+    language = input("language: ")
+    print('code:')
+    code: str = Input().get_code()
+    inputs = ""
+    if "```" in code:
+        _, code, inputs = unwrap_code_block(code)
     language, code = parse_exec_language(language, code)
     async with aiohttp.ClientSession(loop=loop) as session:
         async with await async_tio.Tio(loop=loop, session=session) as tio:
@@ -33,7 +31,7 @@ class Input:
     def __init__(self):
         self.done = False
 
-    def get_codeblock(self) -> str:
+    def get_code(self) -> str:
         keyboard.add_hotkey("ctrl+enter", self._toggle_done)
         lines = []
         while not self.done:
