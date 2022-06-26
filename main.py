@@ -1,29 +1,47 @@
+import aiohttp  # https://docs.aiohttp.org/en/stable/
 import async_tio  # https://pypi.org/project/async-tio/
-# import sys
+import asyncio
+import keyboard  # https://pypi.org/project/keyboard/
 from textwrap import dedent
 from typing import Tuple
 
 
 def main():
-    code_block: str = get_codeblock()
-    # args = " ".join(sys.argv[1:])
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(amain(loop))
+
+
+async def amain(loop):
+    code_block: str = Input().get_codeblock()
     if "```" in code_block:
-        language, expression, inputs = unwrap_code_block(code_block)
+        language, code, inputs = unwrap_code_block(code_block)
     else:
-        language = code_block[:1]
-        expression = code_block[2:]
+        lines = code_block.split("\n")
+        language = lines[0].strip()
+        code = "\n".join(lines[1:])
         inputs = ""
-    language, expression = parse_exec_language(language, expression)
-    with async_tio.Tio() as tio:
-        if language not in tio.languages:
-            print(f"Invalid language: {language}")
-            exit(1)
-        result = tio.execute(expression, language=language, inputs=inputs)
+    language, code = parse_exec_language(language, code)
+    async with aiohttp.ClientSession(loop=loop) as session:
+        async with await async_tio.Tio(loop=loop, session=session) as tio:
+            if language not in tio.languages:
+                raise ValueError(f"Invalid language: `{language}`")
+            result = await tio.execute(code, language=language, inputs=inputs)
     print(f"`{language}` output:\n{result}")
 
 
-def get_codeblock() -> str:
-    raise NotImplemented
+class Input:
+    def __init__(self):
+        self.done = False
+
+    def get_codeblock(self) -> str:
+        keyboard.add_hotkey("ctrl+enter", self._toggle_done)
+        lines = []
+        while not self.done:
+            lines.append(input(">>> "))
+        return "\n".join(lines)
+
+    def _toggle_done(self):
+        self.done = not self.done
 
 
 def unwrap_code_block(statement: str) -> Tuple[str, str, str]:
@@ -138,6 +156,7 @@ def get_c_jargon_header() -> str:
         """
         #include <ctype.h>
         #include <math.h>
+        #include <stdbool.h>
         #include <stdio.h>
         #include <stdlib.h>
         #include <string.h>
@@ -170,11 +189,6 @@ def get_cs_jargon_header() -> str:
                 static void Main(string[] args) {
         """
     )
-
-
-if __name__ == "__main__":
-    main()
-
 
     # @commands.group(
     #     name="run", aliases=["exec", "execute"], invoke_without_command=True
@@ -289,3 +303,10 @@ if __name__ == "__main__":
     #         raise commands.BadArgument(
     #             f"No jargon wrapping has been set for the {language} language"
     #         )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nKeyboardInterrupt")
