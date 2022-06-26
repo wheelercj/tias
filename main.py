@@ -37,7 +37,7 @@ class Input:
         keyboard.add_hotkey("ctrl+enter", self._toggle_done)
         lines = []
         while not self.done:
-            lines.append(input(">>> "))
+            lines.append(input())
         return "\n".join(lines)
 
     def _toggle_done(self):
@@ -310,3 +310,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt")
+    except ValueError as e:
+        print(e)
