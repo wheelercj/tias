@@ -34,8 +34,16 @@ class Input:
     def get_code(self) -> str:
         keyboard.add_hotkey("ctrl+enter", self._toggle_done)
         lines = []
+        empty_count = 0
         while not self.done:
-            lines.append(input())
+            line = input()
+            if not line:
+                empty_count += 1
+            else:
+                empty_count = 0
+            if empty_count == 3:
+                break
+            lines.append(line)
         return "\n".join(lines)
 
     def _toggle_done(self):
