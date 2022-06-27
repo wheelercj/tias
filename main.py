@@ -12,12 +12,18 @@ def main():
 
 
 async def amain(loop):
-    language = input("language: ").lower().strip()
-    if language.endswith(" jargon"):
-        language = language[: -len(" jargon")].strip()
-        await print_jargon(language)
-    else:
-        await get_and_run_code(loop, language)
+    async with aiohttp.ClientSession(loop=loop) as session:
+        language = input("language: ").lower().strip()
+        if language.endswith(" jargon"):
+            language = language[: -len(" jargon")].strip()
+            await print_jargon(language)
+        elif language.startswith("list"):
+            filter_prefix = ""
+            if len(language) > len("list"):
+                filter_prefix = language[len("list") :].strip()
+            await list_languages(loop, session, filter_prefix)
+        else:
+            await get_and_run_code(loop, session, language)
 
 
 async def print_jargon(language: str):
@@ -36,18 +42,55 @@ async def print_jargon(language: str):
         )
 
 
-async def get_and_run_code(loop, language: str):
+async def list_languages(loop, session, filter_prefix: str) -> None:
+    """Lists supported languages, optionally filtered by a prefix.
+
+    You can also see a full list of supported languages here: https://tio.run/#
+    """
+    async with await async_tio.Tio(loop=loop, session=session) as tio:
+        valid_languages = tio.languages
+        aliases = [
+            "c",
+            "c#",
+            "c++",
+            "cpp",
+            "cs",
+            "java",
+            "javascript",
+            "js",
+            "py",
+            "python",
+            "swift",
+        ]
+        valid_languages.extend(aliases)
+        if filter_prefix:
+            valid_languages = list(
+                filter(lambda s: s.startswith(filter_prefix), valid_languages)
+            )
+            lang_count = len(valid_languages)
+            print(
+                f"languages that start with `{filter_prefix}` ({lang_count}): ",
+                end="",
+            )
+        else:
+            lang_count = len(valid_languages) - len(aliases)
+            print(f"languages ({lang_count}): ", end="")
+        valid_languages = sorted(valid_languages)
+        valid_languages = ", ".join(valid_languages)
+        print(valid_languages)
+
+
+async def get_and_run_code(loop, session, language: str) -> None:
     print("code:")
     code: str = Input().get_code()
     inputs = ""
     if "```" in code:
         _, code, inputs = unwrap_code_block(code)
     language, code = parse_exec_language(language, code)
-    async with aiohttp.ClientSession(loop=loop) as session:
-        async with await async_tio.Tio(loop=loop, session=session) as tio:
-            if language not in tio.languages:
-                raise ValueError(f"Invalid language: `{language}`")
-            result = await tio.execute(code, language=language, inputs=inputs)
+    async with await async_tio.Tio(loop=loop, session=session) as tio:
+        if language not in tio.languages:
+            raise ValueError(f"Invalid language: `{language}`")
+        result = await tio.execute(code, language=language, inputs=inputs)
     print(f"`{language}` output:\n{result}")
 
 
@@ -219,43 +262,6 @@ def get_cs_jargon_header() -> str:
                 static void Main(string[] args) {
         """
     )
-
-    # @_run.command(name="languages", aliases=["l", "s", "langs", "list", "search"])
-    # async def list_programming_languages(self, ctx, *, query: str = None):
-    #     """Lists the languages supported by the `run` command that contain an optional search word
-
-    #     e.g. `run languages py` will only show languages that contain `py`.
-    #     You can also see a full list of supported languages here: https://tio.run/#
-    #     """
-    #     if query is None:
-    #         await ctx.send(
-    #             "You can optionally choose a search term, e.g. "
-    #             '`run languages py` will only show languages that contain "py"'
-    #         )
-    #         title = "languages supported by the `run` command"
-    #     else:
-    #         title = f"supported languages that contain `{query}`"
-    #     async with await async_tio.Tio(
-    #         loop=self.bot.loop, session=self.bot.session
-    #     ) as tio:
-    #         valid_languages = tio.languages
-    #         valid_languages.extend(
-    #             [
-    #                 "c",
-    #                 "c#",
-    #                 "c++",
-    #                 "cpp",
-    #                 "cs",
-    #                 "java",
-    #                 "javascript",
-    #                 "js",
-    #                 "py",
-    #                 "python",
-    #                 "swift",
-    #             ]
-    #         )
-    #         valid_languages = sorted(valid_languages, key=len)
-    #         await paginate_search(ctx, title, valid_languages, query)
 
 
 if __name__ == "__main__":
