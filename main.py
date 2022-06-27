@@ -12,8 +12,32 @@ def main():
 
 
 async def amain(loop):
-    language = input("language: ")
-    print('code:')
+    language = input("language: ").lower().strip()
+    if language.endswith(" jargon"):
+        language = language[: -len(" jargon")].strip()
+        await print_jargon(language)
+    else:
+        await get_and_run_code(loop, language)
+
+
+async def print_jargon(language: str):
+    """Shows the jargon for a language, if it has jargon."""
+    if language in ("c++", "cpp"):
+        print(get_cpp_jargon_header())
+    elif language == "c":
+        print(get_c_jargon_header())
+    elif language == "java":
+        print(get_java_jargon_header())
+    elif language in ("c#", "cs"):
+        print(get_cs_jargon_header())
+    else:
+        raise ValueError(
+            f"No jargon wrapping has been set for the `{language}` language"
+        )
+
+
+async def get_and_run_code(loop, language: str):
+    print("code:")
     code: str = Input().get_code()
     inputs = ""
     if "```" in code:
@@ -196,63 +220,6 @@ def get_cs_jargon_header() -> str:
         """
     )
 
-    # @commands.group(
-    #     name="run", aliases=["exec", "execute"], invoke_without_command=True
-    # )
-    # async def _run(self, ctx, *, code_block: str):
-    #     """A group of commands for executing code in almost any language
-
-    #     Without a subcommand, this command executes code in almost any language.
-    #     You can use a markdown-style code block and specify a language.
-    #     """
-    #     async with ctx.typing():
-    #         language, expression, inputs = await unwrap_code_block(code_block)
-    #         language, expression = await self.parse_exec_language(language, expression)
-
-    #         async with await async_tio.Tio(
-    #             loop=self.bot.loop, session=self.bot.session
-    #         ) as tio:
-    #             if language not in tio.languages:
-    #                 raise commands.BadArgument(f"Invalid language: {language}")
-
-    #             result = await tio.execute(expression, language=language, inputs=inputs)
-    #         await ctx.send(f"`{language}` output:\n" + str(result))
-
-    # @_run.command(name="guide", aliases=["g", "i", "h", "info", "help"])
-    # async def exec_guide(self, ctx):
-    #     """Explains some of the nuances of the `run` command"""
-    #     await ctx.send(
-    #         " ".join(
-    #             dedent(
-    #                 """
-    #         With the `run` command, you can use a triple-backtick code block
-    #         and specify a language on its first line. Any input after the
-    #         closing triple backticks will be used as inputs for the program
-    #         (you can hold shift while pressing enter to go to the next line if
-    #         necessary). If you choose c, c++, cpp, java, c#, or cs as the
-    #         language and you only need the main function, you may not need to
-    #         type the function header and commonly needed code above main. You
-    #         can use the `run jargon <language>` command to see what code may be
-    #         automatically added in front of your input if you omit the function
-    #         header.
-
-    #         Some language names will be changed before the code is executed:
-    #         c -> c-clang
-    #         c++ or cpp -> cpp-clang
-    #         c# or cs -> cs-csc
-    #         java -> java-openjdk
-    #         py or python -> python3
-    #         js or javascript -> javascript-node
-    #         swift -> swift4
-
-    #         After this processing, the `run` command sends your code to
-    #         https://tio.run and receives any outputs specified in your code
-    #         (as well as info about how long it took to run).
-    #         """
-    #             ).split("\n")
-    #         )
-    #     )
-
     # @_run.command(name="languages", aliases=["l", "s", "langs", "list", "search"])
     # async def list_programming_languages(self, ctx, *, query: str = None):
     #     """Lists the languages supported by the `run` command that contain an optional search word
@@ -289,26 +256,6 @@ def get_cs_jargon_header() -> str:
     #         )
     #         valid_languages = sorted(valid_languages, key=len)
     #         await paginate_search(ctx, title, valid_languages, query)
-
-    # @_run.command(name="jargon", aliases=["j"])
-    # async def send_jargon(self, ctx, language: str):
-    #     """Shows the jargon the `run` command uses for a language (currently only c, c++, cpp, java, c#, or cs)"""
-    #     if language in ("c++", "cpp"):
-    #         jargon = await self.get_cpp_jargon_header()
-    #         await ctx.send(jargon)
-    #     elif language == "c":
-    #         jargon = await self.get_c_jargon_header()
-    #         await ctx.send(jargon)
-    #     elif language == "java":
-    #         jargon = await self.get_java_jargon_header()
-    #         await ctx.send(jargon)
-    #     elif language in ("c#", "cs"):
-    #         jargon = await self.get_cs_jargon_header()
-    #         await ctx.send(jargon)
-    #     else:
-    #         raise commands.BadArgument(
-    #             f"No jargon wrapping has been set for the {language} language"
-    #         )
 
 
 if __name__ == "__main__":
