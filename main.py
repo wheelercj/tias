@@ -1,8 +1,6 @@
 import aiohttp  # https://docs.aiohttp.org/en/stable/
 import async_tio  # https://pypi.org/project/async-tio/
 import asyncio
-import keyboard  # https://pypi.org/project/keyboard/
-from sys import platform
 from textwrap import dedent
 from typing import Tuple
 
@@ -82,12 +80,7 @@ async def list_languages(loop, session, filter_prefix: str) -> None:
 
 
 async def get_and_run_code(loop, session, language: str) -> None:
-    print("\x1b[32mcode (", end="")
-    if platform == "darwin":
-        print("cmd", end="")
-    else:
-        print("ctrl", end="")
-    print("+enter to run):\x1b[39m")
+    print("\x1b[32mcode: \x1b[90m(enter an empty line to run)\x1b[39m")
     code: str = Input().get_code()
     inputs = ""
     if "```" in code:
@@ -108,22 +101,13 @@ class Input:
         self.done = False
 
     def get_code(self) -> str:
-        keyboard.add_hotkey("ctrl+enter", self._toggle_done)
         lines = []
-        empty_count = 0
-        while not self.done:
+        while True:
             line = input()
             if not line:
-                empty_count += 1
-            else:
-                empty_count = 0
-            if empty_count == 3:
                 break
             lines.append(line)
         return "\n".join(lines)
-
-    def _toggle_done(self):
-        self.done = not self.done
 
 
 def unwrap_code_block(statement: str) -> Tuple[str, str, str]:
