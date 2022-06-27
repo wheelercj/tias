@@ -2,6 +2,7 @@ import aiohttp  # https://docs.aiohttp.org/en/stable/
 import async_tio  # https://pypi.org/project/async-tio/
 import asyncio
 import keyboard  # https://pypi.org/project/keyboard/
+from sys import platform
 from textwrap import dedent
 from typing import Tuple
 
@@ -13,7 +14,7 @@ def main():
 
 async def amain(loop):
     async with aiohttp.ClientSession(loop=loop) as session:
-        language = input("language: ").lower().strip()
+        language = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
         if language.endswith(" jargon"):
             language = language[: -len(" jargon")].strip()
             await print_jargon(language)
@@ -81,7 +82,12 @@ async def list_languages(loop, session, filter_prefix: str) -> None:
 
 
 async def get_and_run_code(loop, session, language: str) -> None:
-    print("code:")
+    print("\x1b[32mcode (", end="")
+    if platform == "darwin":
+        print("cmd", end="")
+    else:
+        print("ctrl", end="")
+    print("+enter to run):\x1b[39m")
     code: str = Input().get_code()
     inputs = ""
     if "```" in code:
@@ -90,8 +96,11 @@ async def get_and_run_code(loop, session, language: str) -> None:
     async with await async_tio.Tio(loop=loop, session=session) as tio:
         if language not in tio.languages:
             raise ValueError(f"Invalid language: `{language}`")
-        result = await tio.execute(code, language=language, inputs=inputs)
-    print(f"`{language}` output:\n{result}")
+        response: str = await tio.execute(code, language=language, inputs=inputs)
+    print(f"\x1b[32m`{language}` output:\x1b[39m\n{response.stdout}", end="")
+    if not response.stdout.endswith("\n"):
+        print()
+    print(f"\x1b[32mexit status: \x1b[39m{response.exit_status}")
 
 
 class Input:
