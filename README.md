@@ -34,12 +34,6 @@ These super short hello world programs are possible because if you don't create 
 
 ![jargon demo](images/jargon.png)
 
-## download
-
-Download the source code here: https://github.com/wheelercj/run-quick/tags
-
-You can create a terminal command to run this app by following [these instructions](https://wheelercj.github.io/notes/pages/20220320181252.html).
-
 ## supported languages
 
 Here are some of the languages:
@@ -49,3 +43,14 @@ APL, Assembly, Bash, C, C#, C++, Clojure, COBOL, Crystal, Dart, Elixir, Emacs Li
 To see the full list, enter `list` when this app asks you which language to use. Some language choices may require you to specify which compiler you want to use. You can filter the results by entering the start of a language after `list `.
 
 ![list demo](images/list.png)
+
+## download
+
+0. Download Python if you haven't already. This app has been tested with Python 3.9.5.
+1. Download the source code here: https://github.com/wheelercj/run-quick/tags.
+2. Unzip the file.
+3. You may want to create a virtual environment.
+4. Install the dependencies with `pip install -r requirements.txt`.
+5. Run main.py.
+
+You can create a terminal command to run this app by following [these instructions](https://wheelercj.github.io/notes/pages/20220320181252.html).
