@@ -46,7 +46,7 @@ To see the full list, enter `list` when this app asks you which language to use.
 
 ## download
 
-0. Download Python if you haven't already. This app has been tested with Python 3.9.5.
+0. Download Python if you haven't already. This app has been tested with Python 3.9 and 3.10.
 1. Download the source code here: https://github.com/wheelercj/run-quick/tags.
 2. Unzip the file.
 3. You may want to create a virtual environment.
