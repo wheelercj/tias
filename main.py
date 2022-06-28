@@ -1,8 +1,9 @@
 import aiohttp  # https://docs.aiohttp.org/en/stable/
 import async_tio  # https://pypi.org/project/async-tio/
 import asyncio
+import json
 from textwrap import dedent
-from typing import Tuple
+from typing import Tuple, List
 
 
 def main():
@@ -12,20 +13,59 @@ def main():
 
 async def amain(loop):
     async with aiohttp.ClientSession(loop=loop) as session:
+        file_name = "valid_languages.json"
+        languages = await get_languages(loop, session, file_name)
         language = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
         if language.endswith(" jargon"):
             language = language[: -len(" jargon")].strip()
+            if language not in languages:
+                raise ValueError(f"Invalid language: `{language}`")
             await print_jargon(language)
         elif language.startswith("list"):
             filter_prefix = ""
             if len(language) > len("list"):
                 filter_prefix = language[len("list") :].strip()
-            await list_languages(loop, session, filter_prefix)
+            await list_languages(languages, filter_prefix)
         else:
-            await get_and_run_code(loop, session, language)
+            if language not in languages:
+                raise ValueError(f"Invalid language: `{language}`")
+            await get_and_run_code(loop, session, file_name, languages, language)
 
 
-async def print_jargon(language: str):
+async def get_languages(loop, session, file_name: str) -> List[str]:
+    file_exists = True
+    try:
+        with open(file_name, "r", encoding="utf8") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        file_exists = False
+    async with await async_tio.Tio(loop=loop, session=session) as tio:
+        languages = tio.languages
+        aliases = [
+            "c",
+            "c#",
+            "c++",
+            "cpp",
+            "cs",
+            "java",
+            "javascript",
+            "js",
+            "py",
+            "python",
+            "swift",
+        ]
+        languages.extend(aliases)
+        if not file_exists:
+            await save_languages(file_name, languages)
+        return languages
+
+
+async def save_languages(file_name: str, languages: List[str]) -> None:
+    with open(file_name, "w", encoding="utf8") as file:
+        json.dump(languages, file)
+
+
+async def print_jargon(language: str) -> None:
     """Shows the jargon for a language, if it has jargon."""
     if language in ("c++", "cpp"):
         print(get_cpp_jargon_header())
@@ -41,45 +81,30 @@ async def print_jargon(language: str):
         )
 
 
-async def list_languages(loop, session, filter_prefix: str) -> None:
+async def list_languages(valid_languages: List[str], filter_prefix: str) -> None:
     """Lists supported languages, optionally filtered by a prefix.
 
     You can also see a full list of supported languages here: https://tio.run/#
     """
-    async with await async_tio.Tio(loop=loop, session=session) as tio:
-        valid_languages = tio.languages
-        aliases = [
-            "c",
-            "c#",
-            "c++",
-            "cpp",
-            "cs",
-            "java",
-            "javascript",
-            "js",
-            "py",
-            "python",
-            "swift",
-        ]
-        valid_languages.extend(aliases)
-        if filter_prefix:
-            valid_languages = list(
-                filter(lambda s: s.startswith(filter_prefix), valid_languages)
-            )
-            lang_count = len(valid_languages)
-            print(
-                f"languages that start with `{filter_prefix}` ({lang_count}): ",
-                end="",
-            )
-        else:
-            lang_count = len(valid_languages) - len(aliases)
-            print(f"languages ({lang_count}): ", end="")
-        valid_languages = sorted(valid_languages)
-        valid_languages = ", ".join(valid_languages)
-        print(valid_languages)
+    if filter_prefix:
+        valid_languages = list(
+            filter(lambda s: s.startswith(filter_prefix), valid_languages)
+        )
+        lang_count = len(valid_languages)
+        print(
+            f"languages that start with `{filter_prefix}` ({lang_count}): ",
+            end="",
+        )
+    else:
+        print(f"languages ({len(valid_languages)}): ", end="")
+    valid_languages = sorted(valid_languages)
+    valid_languages = ", ".join(valid_languages)
+    print(valid_languages)
 
 
-async def get_and_run_code(loop, session, language: str) -> None:
+async def get_and_run_code(
+    loop, session, file_name: str, languages: List[str], language: str
+) -> None:
     print("\x1b[32mcode: \x1b[90m(enter an empty line to run)\x1b[39m")
     code: str = Input().get_code()
     inputs = ""
@@ -87,9 +112,9 @@ async def get_and_run_code(loop, session, language: str) -> None:
         _, code, inputs = unwrap_code_block(code)
     language, code = parse_exec_language(language, code)
     async with await async_tio.Tio(loop=loop, session=session) as tio:
-        if language not in tio.languages:
-            raise ValueError(f"Invalid language: `{language}`")
-        response: str = await tio.execute(code, language=language, inputs=inputs)
+        if len(languages) != len(tio.languages):
+            await save_languages(file_name, tio.languages)
+        response = await tio.execute(code, language=language, inputs=inputs)
     print(f"\x1b[32m`{language}` output:\x1b[39m\n{response.stdout}", end="")
     if not response.stdout.endswith("\n"):
         print()
