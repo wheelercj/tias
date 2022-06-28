@@ -32,7 +32,7 @@ System.out.println("hello world");
 
 These super short hello world programs are possible because if you don't create a main function, this app can wrap your code in a main function and import commonly used libraries. Jargon wrapping is available for several languages. You can see a language's optional jargon (and whether a language has optional jargon) by entering ` jargon` after the language name when the app asks you to choose a language.
 
-![jargon demo](https://ibb.co/PT7CZgb)
+![jargon demo](images/jargon.png)
 
 ## download
 
@@ -48,4 +48,4 @@ APL, Assembly, Bash, C, C#, C++, Clojure, COBOL, Crystal, Dart, Elixir, Emacs Li
 
 To see the full list, enter `list` when this app asks you which language to use. Some language choices may require you to specify which compiler you want to use. You can filter the results by entering the start of a language after `list `.
 
-![list demo](https://ibb.co/z4qqYjM)
+![list demo](images/list.png)
