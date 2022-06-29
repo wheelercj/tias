@@ -44,6 +44,12 @@ To see the full list, enter `list` when this app asks you which language to use.
 
 ![list demo](images/list.png)
 
+## giving input
+
+You can give input to your code by wrapping it with three backticks and then listing the space-separated inputs after.
+
+![input demo](images/input.png)
+
 ## download
 
 0. Download Python if you haven't already. This app has been tested with Python 3.9 and 3.10.
