@@ -14,50 +14,56 @@ def main():
 async def amain(loop):
     async with aiohttp.ClientSession(loop=loop) as session:
         file_name = "valid_languages.json"
-        languages = await get_languages(loop, session, file_name)
-        language = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
-        if language.endswith(" jargon"):
-            language = language[: -len(" jargon")].strip()
-            if language not in languages:
-                raise ValueError(f"Invalid language: `{language}`")
-            await print_jargon(language)
-        elif language.startswith("list"):
+        languages, aliases = await get_languages(loop, session, file_name)
+        chosen_language = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
+        if chosen_language.endswith(" jargon"):
+            chosen_language = chosen_language[: -len(" jargon")].strip()
+            if chosen_language not in languages:
+                raise ValueError(f"Invalid language: `{chosen_language}`")
+            await print_jargon(chosen_language)
+        elif chosen_language.startswith("list"):
             filter_prefix = ""
-            if len(language) > len("list"):
-                filter_prefix = language[len("list") :].strip()
+            if len(chosen_language) > len("list"):
+                filter_prefix = chosen_language[len("list") :].strip()
             await list_languages(languages, filter_prefix)
         else:
-            if language not in languages:
-                raise ValueError(f"Invalid language: `{language}`")
-            await get_and_run_code(loop, session, file_name, languages, language)
+            if chosen_language not in languages:
+                raise ValueError(f"Invalid language: `{chosen_language}`")
+            await get_and_run_code(
+                loop, session, file_name, languages, aliases, chosen_language
+            )
 
 
-async def get_languages(loop, session, file_name: str) -> List[str]:
+async def get_languages(loop, session, file_name: str) -> Tuple[List[str], List[str]]:
+    aliases = [
+        "c",
+        "c#",
+        "c++",
+        "cpp",
+        "cs",
+        "java",
+        "javascript",
+        "js",
+        "py",
+        "python",
+        "swift",
+    ]
     file_exists = True
     try:
         with open(file_name, "r", encoding="utf8") as file:
-            return json.load(file)
+            languages = json.load(file)
+            for alias in aliases:
+                if alias not in languages:
+                    languages.append(alias)
+            return languages, aliases
     except FileNotFoundError:
         file_exists = False
     async with await async_tio.Tio(loop=loop, session=session) as tio:
         languages = tio.languages
-        aliases = [
-            "c",
-            "c#",
-            "c++",
-            "cpp",
-            "cs",
-            "java",
-            "javascript",
-            "js",
-            "py",
-            "python",
-            "swift",
-        ]
         languages.extend(aliases)
         if not file_exists:
             await save_languages(file_name, languages)
-        return languages
+        return languages, aliases
 
 
 async def save_languages(file_name: str, languages: List[str]) -> None:
@@ -103,19 +109,26 @@ async def list_languages(valid_languages: List[str], filter_prefix: str) -> None
 
 
 async def get_and_run_code(
-    loop, session, file_name: str, languages: List[str], language: str
+    loop,
+    session,
+    file_name: str,
+    languages: List[str],
+    aliases: List[str],
+    chosen_language: str,
 ) -> None:
     print("\x1b[32mcode: \x1b[90m(enter an empty line to run)\x1b[39m")
     code: str = Input().get_code()
     inputs = ""
     if "```" in code:
         _, code, inputs = unwrap_code_block(code)
-    language, code = parse_exec_language(language, code)
+    chosen_language, code = parse_exec_language(chosen_language, code)
     async with await async_tio.Tio(loop=loop, session=session) as tio:
-        if len(languages) != len(tio.languages):
-            await save_languages(file_name, tio.languages)
-        response = await tio.execute(code, language=language, inputs=inputs)
-    print(f"\x1b[32m`{language}` output:\x1b[39m\n{response.stdout}", end="")
+        if len(languages) - len(aliases) != len(tio.languages):
+            languages = tio.languages
+            languages.extend(aliases)
+            await save_languages(file_name, languages)
+        response = await tio.execute(code, language=chosen_language, inputs=inputs)
+    print(f"\x1b[32m`{chosen_language}` output:\x1b[39m\n{response.stdout}", end="")
     if not response.stdout.endswith("\n"):
         print()
     print(f"\x1b[32mexit status: \x1b[39m{response.exit_status}")
