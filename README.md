@@ -46,7 +46,7 @@ To see the full list, enter `list` when this app asks you which language to use.
 
 ## giving input
 
-You can give input to your code by wrapping it with three backticks and then listing the space-separated inputs after.
+You can give input to your code by wrapping it with three backticks and then listing the inputs after.
 
 ![input demo](images/input.png)
 
