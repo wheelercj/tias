@@ -25,7 +25,7 @@ async def amain(loop):
             filter_prefix = ""
             if len(chosen_language) > len("list"):
                 filter_prefix = chosen_language[len("list") :].strip()
-            await list_languages(languages, filter_prefix)
+            await list_languages(languages, aliases, filter_prefix)
         else:
             if chosen_language not in languages:
                 raise ValueError(f"Invalid language: `{chosen_language}`")
@@ -87,11 +87,8 @@ async def print_jargon(language: str) -> None:
         )
 
 
-async def list_languages(valid_languages: List[str], filter_prefix: str) -> None:
-    """Lists supported languages, optionally filtered by a prefix.
-
-    You can also see a full list of supported languages here: https://tio.run/#
-    """
+async def list_languages(valid_languages: List[str], aliases: List[str], filter_prefix: str) -> None:
+    """Lists supported languages, optionally filtered by a prefix."""
     if filter_prefix:
         valid_languages = list(
             filter(lambda s: s.startswith(filter_prefix), valid_languages)
@@ -102,7 +99,7 @@ async def list_languages(valid_languages: List[str], filter_prefix: str) -> None
             end="",
         )
     else:
-        print(f"languages ({len(valid_languages)}): ", end="")
+        print(f"languages ({len(valid_languages) - len(aliases)}): ", end="")
     valid_languages = sorted(valid_languages)
     valid_languages = ", ".join(valid_languages)
     print(valid_languages)
