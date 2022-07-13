@@ -29,8 +29,16 @@ async def amain(loop):
         else:
             if chosen_language not in languages:
                 raise ValueError(f"Invalid language: `{chosen_language}`")
-            await get_and_run_code(
-                loop, session, file_name, languages, aliases, chosen_language
+            chosen_language, code, inputs = await get_code(chosen_language)
+            await run_code(
+                loop,
+                session,
+                file_name,
+                languages,
+                aliases,
+                chosen_language,
+                code,
+                inputs,
             )
 
 
@@ -122,20 +130,26 @@ async def list_languages(
     print(valid_languages)
 
 
-async def get_and_run_code(
-    loop,
-    session,
-    file_name: str,
-    languages: List[str],
-    aliases: List[str],
-    chosen_language: str,
-) -> None:
+async def get_code(chosen_language: str) -> Tuple[str, str, str]:
     print("\x1b[32mcode: \x1b[90m(enter an empty line to run)\x1b[39m")
     code: str = Input().get_code()
     inputs = ""
     if "```" in code:
         _, code, inputs = await unwrap_code_block(code)
     chosen_language, code = await parse_exec_language(chosen_language, code)
+    return chosen_language, code, inputs
+
+
+async def run_code(
+    loop,
+    session,
+    file_name: str,
+    languages: List[str],
+    aliases: List[str],
+    chosen_language: str,
+    code: str,
+    inputs: str,
+) -> None:
     async with await async_tio.Tio(loop=loop, session=session) as tio:
         if len(languages) - len(aliases) != len(tio.languages):
             languages = tio.languages
