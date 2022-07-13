@@ -1,6 +1,6 @@
 # run quick
 
-Quickly run code in almost any programming language.
+Quickly run code in almost any language.
 
 ![rq demo](https://media.giphy.com/media/TBH4dpgYTA7Dzx7mBs/giphy.gif)
 
@@ -18,16 +18,22 @@ System.Console.WriteLine("hello world");
 cout << "hello world";
 ```
 
-**C**
+**Go**
 
-```c
-printf("hello world");
+```go
+fmt.Println("hello world")
 ```
 
 **Java**
 
 ```java
 System.out.println("hello world");
+```
+
+**Rust**
+
+```rust
+println!("hello world");
 ```
 
 These super short hello world programs are possible because if you don't create a main function, this app can wrap your code in a main function and import commonly used libraries. Jargon wrapping is available for several languages. You can see a language's optional jargon (and whether a language has optional jargon) by entering ` jargon` after the language name when the app asks you to choose a language.

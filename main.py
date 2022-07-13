@@ -41,9 +41,12 @@ async def get_languages(loop, session, file_name: str) -> Tuple[List[str], List[
         "c++",
         "cpp",
         "cs",
+        "f#",
+        "fs",
         "java",
         "javascript",
         "js",
+        "objective-c",
         "py",
         "python",
         "swift",
@@ -73,21 +76,35 @@ async def save_languages(file_name: str, languages: List[str]) -> None:
 
 async def print_jargon(language: str) -> None:
     """Shows the jargon for a language, if it has jargon."""
-    if language in ("c++", "cpp"):
-        print(get_cpp_jargon_header())
-    elif language == "c":
+    if language in ("c", "c-clang"):
         print(get_c_jargon_header())
-    elif language == "java":
-        print(get_java_jargon_header())
-    elif language in ("c#", "cs"):
+    elif language in ("c++", "cpp", "cpp-clang"):
+        print(get_cpp_jargon_header())
+    elif language in ("c#", "cs", "cs-csc"):
         print(get_cs_jargon_header())
+    elif language == "dart":
+        print(get_dart_jargon_header())
+    elif language == "go":
+        print(get_go_jargon_header())
+    elif language in ("java", "java-openjdk"):
+        print(get_java_jargon_header())
+    elif language == "kotlin":
+        print(get_kotlin_jargon_header())
+    elif language.startswith("objective-c"):
+        print(get_objective_c_jargon_header())
+    elif language == "rust":
+        print(get_rust_jargon_header())
+    elif language == "scala":
+        print(get_scala_jargon_header())
     else:
         raise ValueError(
             f"No jargon wrapping has been set for the `{language}` language"
         )
 
 
-async def list_languages(valid_languages: List[str], aliases: List[str], filter_prefix: str) -> None:
+async def list_languages(
+    valid_languages: List[str], aliases: List[str], filter_prefix: str
+) -> None:
     """Lists supported languages, optionally filtered by a prefix."""
     if filter_prefix:
         valid_languages = list(
@@ -117,8 +134,8 @@ async def get_and_run_code(
     code: str = Input().get_code()
     inputs = ""
     if "```" in code:
-        _, code, inputs = unwrap_code_block(code)
-    chosen_language, code = parse_exec_language(chosen_language, code)
+        _, code, inputs = await unwrap_code_block(code)
+    chosen_language, code = await parse_exec_language(chosen_language, code)
     async with await async_tio.Tio(loop=loop, session=session) as tio:
         if len(languages) - len(aliases) != len(tio.languages):
             languages = tio.languages
@@ -145,8 +162,8 @@ class Input:
         return "\n".join(lines)
 
 
-def unwrap_code_block(statement: str) -> Tuple[str, str, str]:
-    """Removes triple backticks and a syntax name around a code block
+async def unwrap_code_block(statement: str) -> Tuple[str, str, str]:
+    """Removes triple backticks and a syntax name around a code block.
 
     Returns any syntax name found, the unwrapped code, and anything after
     closing triple backticks. Any syntax name must be on the same line as the
@@ -179,56 +196,117 @@ def unwrap_code_block(statement: str) -> Tuple[str, str, str]:
     return syntax, statement, suffix
 
 
-def parse_exec_language(language: str, expression: str) -> Tuple[str, str]:
-    """Changes some language names so TIO will understand, and wraps jargon for some languages"""
-    if language in ("txt", "py", "python"):
-        language = "python3"
-    elif language in ("cpp", "c++"):
-        language = "cpp-clang"
-        if "int main(" not in expression:
-            expression = wrap_with_cpp_jargon(expression)
-    elif language == "c":
-        language = "c-clang"
+async def parse_exec_language(language: str, expression: str) -> Tuple[str, str]:
+    """Changes some language names for TIO and can wrap jargon."""
+    if language == "c" or language.startswith("c-"):
+        if language == "c":
+            language = "c-clang"
         if "int main(" not in expression:
             expression = wrap_with_c_jargon(expression)
-    elif language == "java":
-        language = "java-openjdk"
-        if "public static void main(String[] args)" not in expression:
-            expression = wrap_with_java_jargon(expression)
-    elif language in ("cs", "c#"):
-        language = "cs-csc"
-        if "static void Main(string[] args)" not in expression:
+    elif language in ("cpp", "c++") or language.startswith("cpp-"):
+        if language in ("cpp", "c++"):
+            language = "cpp-clang"
+        if "int main(" not in expression:
+            expression = wrap_with_cpp_jargon(expression)
+    elif language in ("cs", "c#") or language.startswith("cs-"):
+        if language in ("cs", "c#"):
+            language = "cs-csc"
+        if "static void Main(" not in expression:
             expression = wrap_with_cs_jargon(expression)
-    elif language in ("js", "javascript"):
+    elif language == "dart":
+        if "void main(" not in expression:
+            expression = wrap_with_dart_jargon(expression)
+    elif language in ("fs", "f#"):
+        language = "fs-core"
+    elif language == "go":
+        if "func main(" not in expression:
+            expression = wrap_with_go_jargon(expression)
+    elif language == "java" or language.startswith("java-"):
+        if language == "java":
+            language = "java-openjdk"
+        if "public static void main(" not in expression:
+            expression = wrap_with_java_jargon(expression)
+    elif language == "js":
         language = "javascript-node"
+    elif language == "kotlin":
+        if "fun main(" not in expression:
+            expression = wrap_with_kotlin_jargon(expression)
+    elif language.startswith("objective-c"):
+        if language == "objective-c":
+            language = "objective-c-clang"
+        if "int main(" not in expression:
+            expression = wrap_with_objective_c_jargon(expression)
+    elif language in ("py", "python", "txt"):
+        language = "python3"
+    elif language == "rust":
+        if "fn main(" not in expression:
+            expression = wrap_with_rust_jargon(expression)
+    elif language == "scala":
+        if "object Main" not in expression:
+            expression = wrap_with_scala_jargon(expression)
     elif language == "swift":
         language = "swift4"
 
     return language, expression
 
 
-def wrap_with_cpp_jargon(expression: str) -> str:
-    """Wraps C++ code with common C++ jargon"""
-    return get_cpp_jargon_header() + expression + "}"
-
-
 def wrap_with_c_jargon(expression: str) -> str:
-    """Wraps C code with common C jargon"""
     return get_c_jargon_header() + expression + "}"
 
 
-def wrap_with_java_jargon(expression: str) -> str:
-    """Wraps Java code with common Java jargon"""
-    return get_java_jargon_header() + expression + "}}"
+def wrap_with_cpp_jargon(expression: str) -> str:
+    return get_cpp_jargon_header() + expression + "}"
 
 
 def wrap_with_cs_jargon(expression: str) -> str:
-    """Wraps C# code with common C# jargon"""
     return get_cs_jargon_header() + expression + "}}}"
 
 
+def wrap_with_dart_jargon(expression: str) -> str:
+    return get_dart_jargon_header() + expression + "}"
+
+
+def wrap_with_go_jargon(expression: str) -> str:
+    return get_go_jargon_header() + expression + "}"
+
+
+def wrap_with_java_jargon(expression: str) -> str:
+    return get_java_jargon_header() + expression + "}}"
+
+
+def wrap_with_kotlin_jargon(expression: str) -> str:
+    return get_kotlin_jargon_header() + expression + "}"
+
+
+def wrap_with_objective_c_jargon(expression: str) -> str:
+    return get_objective_c_jargon_header() + expression + "}"
+
+
+def wrap_with_rust_jargon(expression: str) -> str:
+    return get_rust_jargon_header() + expression + "}"
+
+
+def wrap_with_scala_jargon(expression: str) -> str:
+    return get_scala_jargon_header() + expression + "}"
+
+
+def get_c_jargon_header() -> str:
+    return dedent(
+        """
+        #include <ctype.h>
+        #include <math.h>
+        #include <stdbool.h>
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
+        #include <time.h>
+
+        int main(void) {
+        """
+    )
+
+
 def get_cpp_jargon_header() -> str:
-    """Returns the starting jargon for C++ (not including closing brackets)"""
     return dedent(
         """
         #include <algorithm>
@@ -251,25 +329,32 @@ def get_cpp_jargon_header() -> str:
     )
 
 
-def get_c_jargon_header() -> str:
-    """Returns the starting jargon for C (not including closing brackets)"""
+def get_cs_jargon_header() -> str:
     return dedent(
         """
-        #include <ctype.h>
-        #include <math.h>
-        #include <stdbool.h>
-        #include <stdio.h>
-        #include <stdlib.h>
-        #include <string.h>
-        #include <time.h>
+        namespace MyNamespace {
+            class MyClass {         
+                static void Main(string[] args) {
+        """
+    )
 
-        int main(void) {
+
+def get_dart_jargon_header() -> str:
+    return "void main() {"
+
+
+def get_go_jargon_header() -> str:
+    return dedent(
+        """
+        package main
+        import "fmt"
+
+        func main() {
         """
     )
 
 
 def get_java_jargon_header() -> str:
-    """Returns the starting jargon for Java (not including closing brackets)"""
     return dedent(
         """
         import java.util.*;
@@ -281,15 +366,27 @@ def get_java_jargon_header() -> str:
     )
 
 
-def get_cs_jargon_header() -> str:
-    """Returns the starting jargon for C# (not including closing brackets)"""
+def get_kotlin_jargon_header() -> str:
+    return "fun main(args : Array<String>) {"
+
+
+def get_objective_c_jargon_header() -> str:
     return dedent(
         """
-        namespace MyNamespace {
-            class MyClass {         
-                static void Main(string[] args) {
+        #include <stdio.h>
+        // Print with the `puts` function, not `NSLog`.
+        
+        int main() {
         """
     )
+
+
+def get_rust_jargon_header() -> str:
+    return "fn main() {"
+
+
+def get_scala_jargon_header() -> str:
+    return "object Main extends App {"
 
 
 if __name__ == "__main__":
