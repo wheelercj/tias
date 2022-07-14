@@ -2,7 +2,7 @@
 
 Quickly run code in almost any language.
 
-![rq demo](https://media.giphy.com/media/TBH4dpgYTA7Dzx7mBs/giphy.gif)
+![rq demo](https://media.giphy.com/media/ow5R3oAFvrEsSesdtI/giphy.gif)
 
 This app uses [tio.run](https://tio.run/#)'s API but can also wrap commonly used jargon around your code for faster experimentation. Here are some sample hello world programs in various languages in this app:
 
