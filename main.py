@@ -2,8 +2,11 @@ import aiohttp  # https://docs.aiohttp.org/en/stable/
 import async_tio  # https://pypi.org/project/async-tio/
 import asyncio
 import json
+import keyboard  # https://pypi.org/project/keyboard/
+import platform
 from textwrap import dedent
-from typing import Tuple, List
+from typing import List
+from typing import Tuple
 
 
 def main():
@@ -131,7 +134,12 @@ async def list_languages(
 
 
 async def get_code(chosen_language: str) -> Tuple[str, str, str]:
-    print("\x1b[32mcode: \x1b[90m(enter an empty line to run)\x1b[39m")
+    print(end="\x1b[32mcode: \x1b[90m(")
+    if platform == "darwin":
+        print(end="cmd")
+    else:
+        print(end="ctrl")
+    print("+enter to run)\x1b[39m")
     code: str = Input().get_code()
     inputs = ""
     if "```" in code:
@@ -163,17 +171,19 @@ async def run_code(
 
 
 class Input:
-    def __init__(self):
-        self.done = False
+    def __init__(self) -> None:
+        self.receiving_input = True
+        self.lines = []
 
     def get_code(self) -> str:
-        lines = []
-        while True:
-            line = input()
-            if not line:
-                break
-            lines.append(line)
-        return "\n".join(lines)
+        keyboard.add_hotkey("ctrl+enter", self._toggle_receiving_input)
+        while self.receiving_input:
+            self.lines.append(input())
+        return "\n".join(self.lines)
+
+    def _toggle_receiving_input(self) -> None:
+        keyboard.write("\n")  # Some terminals require this for the `input` call to end.
+        self.receiving_input = not self.receiving_input
 
 
 async def unwrap_code_block(statement: str) -> Tuple[str, str, str]:
