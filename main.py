@@ -188,7 +188,8 @@ async def get_code(chosen_language: str) -> Tuple[str, str, str]:
     inputs = ""
     if "```" in code:
         _, code, inputs = await unwrap_code_block(code)
-    chosen_language, code = await parse_exec_language(chosen_language, code)
+    code = await wrap_jargon(chosen_language, code)
+    chosen_language = await dealias(chosen_language)
     return chosen_language, code, inputs
 
 
@@ -264,58 +265,63 @@ async def unwrap_code_block(statement: str) -> Tuple[str, str, str]:
     return syntax, statement, suffix
 
 
-async def parse_exec_language(language: str, expression: str) -> Tuple[str, str]:
-    """Changes some language names for TIO and can wrap jargon."""
-    if language == "c" or language.startswith("c-"):
-        if language == "c":
-            language = "c-clang"
+async def dealias(language: str) -> str:
+    """Changes aliases to default languages, returns default languages unchanged."""
+    if language == "c":
+        language = "c-clang"
+    elif language in ("cpp", "c++"):
+        language = "cpp-clang"
+    if language in ("cs", "c#"):
+        language = "cs-csc"
+    elif language in ("fs", "f#"):
+        language = "fs-core"
+    if language == "java":
+        language = "java-openjdk"
+    elif language == "js":
+        language = "javascript-node"
+    if language == "objective-c":
+        language = "objective-c-clang"
+    elif language in ("py", "python", "txt"):
+        language = "python3"
+    elif language == "swift":
+        language = "swift4"
+    return language
+
+
+async def wrap_jargon(language: str, expression: str) -> str:
+    """Wraps code around an expression if jargon exists and is needed."""
+    if language in ("c", "c-clang", "c-gcc", "c-tcc"):
         if "int main(" not in expression:
             expression = wrap_with_c_jargon(expression)
-    elif language in ("cpp", "c++") or language.startswith("cpp-"):
-        if language in ("cpp", "c++"):
-            language = "cpp-clang"
+    elif language in ("cpp", "c++", "cpp-clang", "cpp-gcc"):
         if "int main(" not in expression:
             expression = wrap_with_cpp_jargon(expression)
-    elif language in ("cs", "c#") or language.startswith("cs-"):
-        if language in ("cs", "c#"):
-            language = "cs-csc"
+    elif language in ( "cs", "c#", "cs-core", "cs-csc", "cs-csi", "cs-mono"):
         if "static void Main(" not in expression:
             expression = wrap_with_cs_jargon(expression)
     elif language == "dart":
         if "void main(" not in expression:
             expression = wrap_with_dart_jargon(expression)
-    elif language in ("fs", "f#"):
-        language = "fs-core"
     elif language == "go":
         if "func main(" not in expression:
             expression = wrap_with_go_jargon(expression)
-    elif language == "java" or language.startswith("java-"):
-        if language == "java":
-            language = "java-openjdk"
+    elif language in ("java", "java-jdk", "java-openjdk"):
         if "public static void main(" not in expression:
             expression = wrap_with_java_jargon(expression)
-    elif language == "js":
-        language = "javascript-node"
     elif language == "kotlin":
         if "fun main(" not in expression:
             expression = wrap_with_kotlin_jargon(expression)
-    elif language.startswith("objective-c"):
-        if language == "objective-c":
-            language = "objective-c-clang"
+    elif language in ("objective-c", "objective-c-clang", "objective-c-gcc"):
         if "int main(" not in expression:
             expression = wrap_with_objective_c_jargon(expression)
-    elif language in ("py", "python", "txt"):
-        language = "python3"
     elif language == "rust":
         if "fn main(" not in expression:
             expression = wrap_with_rust_jargon(expression)
     elif language == "scala":
         if "object Main" not in expression:
             expression = wrap_with_scala_jargon(expression)
-    elif language == "swift":
-        language = "swift4"
 
-    return language, expression
+    return expression
 
 
 def wrap_with_c_jargon(expression: str) -> str:
