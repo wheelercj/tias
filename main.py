@@ -9,17 +9,19 @@ from typing import List
 from typing import Tuple
 
 
-def main():
+def main() -> None:
     loop = asyncio.get_event_loop()
     loop.run_until_complete(amain(loop))
 
 
-async def amain(loop):
+async def amain(loop) -> None:
     async with aiohttp.ClientSession(loop=loop) as session:
         file_name = "valid_languages.json"
         languages, aliases = await get_languages(loop, session, file_name)
         chosen_language = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
-        if chosen_language.endswith(" jargon"):
+        if chosen_language == "help":
+            await print_help()
+        elif chosen_language.endswith(" jargon"):
             chosen_language = chosen_language[: -len(" jargon")].strip()
             if chosen_language not in languages:
                 raise ValueError(f"Invalid language: `{chosen_language}`")
@@ -83,6 +85,30 @@ async def get_languages(loop, session, file_name: str) -> Tuple[List[str], List[
 async def save_languages(file_name: str, languages: List[str]) -> None:
     with open(file_name, "w", encoding="utf8") as file:
         json.dump(languages, file)
+
+
+async def print_help() -> None:
+    print(
+        dedent(
+            """\
+        When prompted for a language, you can either enter a language and then
+        code to run or enter an option below.
+
+        help
+            Displays this message.
+
+        \x1b[90;3mlanguage\x1b[0m jargon
+            Shows the code that can wrap around your code in a given language.
+
+        list
+            Shows all supported languages and all of their aliases.
+
+        list \x1b[90;3mprefix\x1b[0m
+            Shows all supported languages and aliases that start with a given
+            prefix.
+        """
+        )
+    )
 
 
 async def print_jargon(language: str) -> None:
