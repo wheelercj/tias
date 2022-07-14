@@ -1,4 +1,5 @@
 import aiohttp  # https://docs.aiohttp.org/en/stable/
+import argparse
 import async_tio  # https://pypi.org/project/async-tio/
 import asyncio
 import json
@@ -9,7 +10,21 @@ from typing import List
 from typing import Tuple
 
 
+VERSION = "0.3.0"
+
+
+def init_argparse() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        usage="%(prog)s [OPTION]",
+        description="Quickly run code in almost any language. When prompted "
+        "for a language, enter \x1b[100mhelp\x1b[0m for more options.",
+    )
+    parser.add_argument("-v", "--version", action="version", version=f"v{VERSION}")
+    return parser
+
+
 def main() -> None:
+    _ = init_argparse().parse_args()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(amain(loop))
 
@@ -91,22 +106,22 @@ async def print_help() -> None:
     print(
         dedent(
             """\
-        When prompted for a language, you can either enter a language and then
-        code to run or enter an option below.
+            When prompted for a language, you can either enter a language and then
+            code to run or enter an option below.
 
-        help
-            Displays this message.
+            help
+                Displays this message.
 
-        \x1b[90;3mlanguage\x1b[0m jargon
-            Shows the code that can wrap around your code in a given language.
+            \x1b[90;3mlanguage\x1b[0m jargon
+                Shows the code that can wrap around your code in a given language.
 
-        list
-            Shows all supported languages and all of their aliases.
+            list
+                Shows all supported languages and all of their aliases.
 
-        list \x1b[90;3mprefix\x1b[0m
-            Shows all supported languages and aliases that start with a given
-            prefix.
-        """
+            list \x1b[90;3mprefix\x1b[0m
+                Shows all supported languages and aliases that start with a given
+                prefix.
+            """
         )
     )
 
