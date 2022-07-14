@@ -166,8 +166,15 @@ async def list_languages(
     else:
         print(f"languages ({len(valid_languages) - len(aliases)}): ", end="")
     valid_languages = sorted(valid_languages)
+    alias_included = False
+    for i, language in enumerate(valid_languages):
+        if language in aliases:
+            alias_included = True
+            valid_languages[i] = f"\x1b[36m{language}\x1b[0m"
     valid_languages = ", ".join(valid_languages)
     print(valid_languages)
+    if alias_included:
+        print("\x1b[90m(Aliases are shown in blue).\x1b[0m")
 
 
 async def get_code(chosen_language: str) -> Tuple[str, str, str]:
