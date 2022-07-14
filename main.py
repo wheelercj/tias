@@ -106,20 +106,16 @@ async def print_help() -> None:
     print(
         dedent(
             """\
-            When prompted for a language, you can either enter a language and then
-            code to run or enter an option below.
-
             help
                 Displays this message.
-
+            \x1b[90;3mlanguage\x1b[0m
+                Allows you to enter code to run in a chosen language.
             \x1b[90;3mlanguage\x1b[0m jargon
-                Shows the code that can wrap around your code in a given language.
-
+                Shows the code that can wrap around your code in a chosen language.
             list
                 Shows all supported languages and all of their aliases.
-
             list \x1b[90;3mprefix\x1b[0m
-                Shows all supported languages and aliases that start with a given
+                Shows all supported languages and aliases that start with a chosen
                 prefix.
             """
         )
