@@ -5,16 +5,24 @@ from typing import Tuple
 import sqlite3
 
 
+async def init_jargon(database_file_name: str) -> None:
+    """Creates a jargon table in the database if it doesn't exist."""
+    with sqlite3.connect(database_file_name) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'jargon';
+            """
+        )
+        if not cursor.fetchall():
+            await create_jargon_table(database_file_name)
+
+
 async def print_jargon(alias_or_language_name: str, database_file_name: str) -> None:
     """Shows the jargon for a language if it has jargon."""
-    try:
-        jargon, jargon_key = await load_jargon(
-            alias_or_language_name, database_file_name
-        )
-    except sqlite3.OperationalError:
-        jargon, jargon_key = await create_jargon_table(
-            alias_or_language_name, database_file_name
-        )
+    jargon, jargon_key = await load_jargon(alias_or_language_name, database_file_name)
     if jargon:
         print(f"\x1b[32mjargon:\x1b[0m\n{jargon}")
         print(f"\x1b[32mjargon key:\x1b[0m {jargon_key}")
@@ -25,31 +33,20 @@ async def print_jargon(alias_or_language_name: str, database_file_name: str) -> 
         )
 
 
-async def create_jargon_table(
-    alias_or_language: str, database_file_name: str
-) -> Tuple[str, str]:
-    """Creates a sqlite table with default jargon & returns jargon for one language.
+async def create_jargon_table(database_file_name: str) -> None:
+    """Creates a sqlite table with default jargon.
 
-    Assumes the table does not exist. Returns empty strings if the language has
-    no jargon.
-
-    Returns
-    -------
-    str
-        The language's jargon.
-    str
-        The language's "jargon key", i.e. something in an expression that, if
-        present, means jargon wrapping is not needed.
+    Assumes the table does not exist.
     """
     default_jargon: Dict[str, Tuple[str, str]] = await get_default_jargon()
     with sqlite3.connect(database_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
-            CREATE TABLE all_jargon (
+            CREATE TABLE jargon (
                 id INTEGER PRIMARY KEY,
                 alias_or_language_name TEXT NOT NULL,
-                jargon TEXT NOT NULL,
+                jargon_text TEXT NOT NULL,
                 jargon_key TEXT NOT NULL,
                 UNIQUE (alias_or_language_name)
             );
@@ -58,9 +55,6 @@ async def create_jargon_table(
         for alias_or_language_name, (jargon, jargon_key) in default_jargon.items():
             await save_jargon(alias_or_language_name, jargon, jargon_key, cursor)
         conn.commit()
-    if alias_or_language and alias_or_language in default_jargon:
-        return default_jargon[alias_or_language]
-    return ("", "")
 
 
 async def save_jargon(
@@ -69,8 +63,8 @@ async def save_jargon(
     """Saves to the database the jargon for an alias or language."""
     cursor.execute(
         """
-        INSERT OR IGNORE INTO all_jargon
-        (alias_or_language_name, jargon, jargon_key)
+        INSERT OR IGNORE INTO jargon
+        (alias_or_language_name, jargon_text, jargon_key)
         VALUES (?, ?, ?);
         """,
         (alias_or_language_name, jargon, jargon_key),
@@ -92,24 +86,21 @@ async def load_jargon(
         The language's "jargon key", i.e. something in an expression that, if
         present, means jargon wrapping is not needed.
     """
-    try:
-        with sqlite3.connect(database_file_name) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT jargon, jargon_key
-                FROM all_jargon
-                WHERE alias_or_language_name = ?;
-                """,
-                [alias_or_language_name],
-            )
-            records = cursor.fetchall()
-            if not records:
-                return ("", "")
-            jargon, jargon_key = records[0]
-            return jargon, jargon_key
-    except sqlite3.OperationalError:
-        return await create_jargon_table(alias_or_language_name, database_file_name)
+    with sqlite3.connect(database_file_name) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT jargon_text, jargon_key
+            FROM jargon
+            WHERE alias_or_language_name = ?;
+            """,
+            [alias_or_language_name],
+        )
+        records = cursor.fetchall()
+        if not records:
+            return ("", "")
+        jargon, jargon_key = records[0]
+        return jargon, jargon_key
 
 
 async def wrap_jargon(

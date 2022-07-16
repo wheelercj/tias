@@ -1,4 +1,5 @@
 from typing import Dict
+from typing import List
 import sqlite3
 
 
@@ -72,3 +73,33 @@ async def load_aliases(database_file_name: str) -> Dict[str, str]:
             return all_aliases
     except sqlite3.OperationalError:
         return await create_aliases_table(database_file_name)
+
+
+async def delete_alias(
+    alias: str, aliases: Dict[str, str], languages: List[str], database_file_name: str
+):
+    del aliases[alias]
+    languages.remove(alias)
+    with sqlite3.connect(database_file_name) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            DELETE FROM aliases
+            WHERE alias_name = ?;
+            """,
+            [alias],
+        )
+        cursor.execute(
+            """
+            DELETE FROM languages
+            WHERE language_name = ?;
+            """,
+            [alias],
+        )
+        cursor.execute(
+            """
+            DELETE FROM jargon
+            WHERE alias_or_language_name = ?;
+            """,
+            [alias],
+        )

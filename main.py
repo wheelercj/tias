@@ -1,6 +1,8 @@
 from aliases import dealias
+from aliases import delete_alias
 from aliases import load_aliases
 from errors import InputError
+from jargon import init_jargon
 from jargon import print_jargon
 from jargon import wrap_jargon
 from textwrap import dedent
@@ -42,13 +44,14 @@ async def amain(loop) -> None:
         languages: List[str] = await load_languages(
             loop, session, database_file_name, aliases
         )
+        await init_jargon(database_file_name)
         chosen_lang = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
         if chosen_lang == "help":
             await print_help()
         elif chosen_lang.startswith("jargon "):
             chosen_lang = chosen_lang.replace("jargon ", "").strip()
             if chosen_lang not in languages:
-                raise InputError(f"Invalid language: `{chosen_lang}`")
+                print(f"Invalid language: `{chosen_lang}`")
             await print_jargon(chosen_lang, database_file_name)
         elif chosen_lang == "list" or chosen_lang.startswith("list "):
             filter_prefix = ""
@@ -58,14 +61,23 @@ async def amain(loop) -> None:
         elif chosen_lang.startswith("alias "):
             chosen_lang = chosen_lang.replace("alias ", "").strip()
             if chosen_lang not in languages:
-                raise InputError(f"Invalid language: `{chosen_lang}`")
+                print(f"Invalid language: `{chosen_lang}`")
             if chosen_lang in aliases:
                 print(f"`{chosen_lang}` is an alias of `{aliases[chosen_lang]}`")
             else:
                 print(f"`{chosen_lang}` is not an alias")
+        elif chosen_lang.startswith("delete alias "):
+            chosen_lang = chosen_lang.replace("delete alias ", "").strip()
+            if chosen_lang not in languages:
+                print(f"Invalid language: `{chosen_lang}`")
+            if chosen_lang in aliases:
+                await delete_alias(chosen_lang, aliases, languages, database_file_name)
+                print(f"Deleted alias `{chosen_lang}`")
+            else:
+                print(f"`{chosen_lang}` is not an alias")
         else:
             if chosen_lang not in languages:
-                raise InputError(f"Invalid language: `{chosen_lang}`")
+                print(f"Invalid language: `{chosen_lang}`")
             chosen_lang, code, inputs = await get_code(
                 chosen_lang, aliases, database_file_name
             )
@@ -161,6 +173,8 @@ async def print_help() -> None:
                 prefix.
             alias \x1b[90;3m(alias)\x1b[0m
                 Shows the base language of an alias.
+            delete alias \x1b[90;3m(alias)\x1b[0m
+                Deletes an alias and any jargon it has.
             
             For more help, visit https://github.com/wheelercj/run-quick
             """
