@@ -121,20 +121,15 @@ async def wrap_jargon(
 
 async def get_default_jargon() -> Dict[str, Tuple[str, str]]:
     default_jargon: Dict[str, Tuple[str, str]] = {
-        # keys: alias or language name
+        # keys: the alias or language name
         # values:
         #   * the jargon
         #   * the "jargon key"
         "c": (
             dedent(
                 """\
-                #include <ctype.h>
-                #include <math.h>
                 #include <stdbool.h>
                 #include <stdio.h>
-                #include <stdlib.h>
-                #include <string.h>
-                #include <time.h>
 
                 int main(void) {
                     INSERT_HERE
@@ -146,19 +141,8 @@ async def get_default_jargon() -> Dict[str, Tuple[str, str]]:
         "cpp": (
             dedent(
                 """\
-                #include <algorithm>
-                #include <cctype>
-                #include <cstring>
-                #include <ctime>
-                #include <fstream>
-                #include <iomanip>
                 #include <iostream>
-                #include <math.h>
-                #include <numeric>
-                #include <sstream>
                 #include <stdio.h>
-                #include <string>
-                #include <vector>
                 using namespace std;
 
                 int main() {
