@@ -45,24 +45,31 @@ async def amain(loop) -> None:
         languages, aliases = await get_languages(
             loop, session, languages_file_name, database_file_name
         )
-        chosen_language = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
-        if chosen_language == "help":
+        chosen_lang = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
+        if chosen_lang == "help":
             await print_help()
-        elif chosen_language.endswith(" jargon"):
-            chosen_language = chosen_language[: -len(" jargon")].strip()
-            if chosen_language not in languages:
-                raise InputError(f"Invalid language: `{chosen_language}`")
-            await print_jargon(chosen_language, database_file_name)
-        elif chosen_language.startswith("list"):
+        elif chosen_lang.startswith("jargon "):
+            chosen_lang = chosen_lang.replace("jargon ", "").strip()
+            if chosen_lang not in languages:
+                raise InputError(f"Invalid language: `{chosen_lang}`")
+            await print_jargon(chosen_lang, database_file_name)
+        elif chosen_lang.startswith("list "):
             filter_prefix = ""
-            if len(chosen_language) > len("list"):
-                filter_prefix = chosen_language[len("list") :].strip()
+            filter_prefix = chosen_lang.replace("list ", "").strip()
             await list_languages(languages, aliases, filter_prefix)
+        elif chosen_lang.startswith("alias "):
+            chosen_lang = chosen_lang.replace("alias ", "").strip()
+            if chosen_lang not in languages:
+                raise InputError(f"Invalid language: `{chosen_lang}`")
+            if chosen_lang in aliases:
+                print(f"`{chosen_lang}` is an alias of `{aliases[chosen_lang]}`.")
+            else:
+                print(f"`{chosen_lang}` is not an alias.")
         else:
-            if chosen_language not in languages:
-                raise InputError(f"Invalid language: `{chosen_language}`")
-            chosen_language, code, inputs = await get_code(
-                chosen_language, aliases, database_file_name
+            if chosen_lang not in languages:
+                raise InputError(f"Invalid language: `{chosen_lang}`")
+            chosen_lang, code, inputs = await get_code(
+                chosen_lang, aliases, database_file_name
             )
             await run_code(
                 loop,
@@ -70,7 +77,7 @@ async def amain(loop) -> None:
                 languages_file_name,
                 languages,
                 aliases,
-                chosen_language,
+                chosen_lang,
                 code,
                 inputs,
             )
@@ -107,13 +114,15 @@ async def print_help() -> None:
                 Displays this message.
             \x1b[90;3m(language)\x1b[0m
                 Selects a language and then asks you for code to run.
-            \x1b[90;3m(language)\x1b[0m jargon
+            jargon \x1b[90;3m(language)\x1b[0m
                 Shows the code that can wrap around your code in a chosen language.
             list
                 Shows all supported languages and all of their aliases.
             list \x1b[90;3m(prefix)\x1b[0m
                 Shows all supported languages and aliases that start with a chosen
                 prefix.
+            alias \x1b[90;3m(alias)\x1b[0m
+                Shows the base language of an alias.
             
             For more help, visit https://github.com/wheelercj/run-quick
             """
