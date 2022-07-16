@@ -16,6 +16,7 @@ import asyncio
 import keyboard  # https://pypi.org/project/keyboard/
 import platform
 import sqlite3
+import sys
 
 
 VERSION = "0.3.0"
@@ -24,20 +25,22 @@ VERSION = "0.3.0"
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         usage="%(prog)s [OPTION]",
-        description="Quickly run code in almost any language. When prompted "
-        "for a language, enter \x1b[100mhelp\x1b[0m for more options.",
+        description="Quickly run code in almost any language.",
+        epilog="For tips, the source code, discussions, and more, visit https://github.com/wheelercj/run-quick",
     )
     parser.add_argument("-v", "--version", action="version", version=f"v{VERSION}")
+    parser.add_argument("-l", "--loop", action="store_true", help="makes the app loop")
     return parser
 
 
 def main() -> None:
-    _ = init_argparse().parse_args()
+    args: argparse.Namespace = init_argparse().parse_args()
+    loop_app: bool = args.loop
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(amain(loop))
+    loop.run_until_complete(amain(loop, loop_app))
 
 
-async def amain(loop) -> None:
+async def amain(loop, loop_app: bool) -> None:
     async with aiohttp.ClientSession(loop=loop) as session:
         database_file_name = "run-quick database.db"
         aliases: Dict[str, str] = await load_aliases(database_file_name)
@@ -45,52 +48,73 @@ async def amain(loop) -> None:
             loop, session, database_file_name, aliases
         )
         await init_jargon(database_file_name)
-        chosen_lang = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
-        if chosen_lang == "help":
-            await print_help()
-        elif chosen_lang.startswith("jargon "):
-            chosen_lang = chosen_lang.replace("jargon ", "").strip()
-            if chosen_lang not in languages:
-                print(f"Invalid language: `{chosen_lang}`")
-            await print_jargon(chosen_lang, database_file_name)
-        elif chosen_lang == "list" or chosen_lang.startswith("list "):
-            filter_prefix = ""
-            if chosen_lang.startswith("list "):
-                filter_prefix = chosen_lang.replace("list ", "").strip()
-            await list_languages(languages, aliases, filter_prefix)
-        elif chosen_lang.startswith("alias "):
-            chosen_lang = chosen_lang.replace("alias ", "").strip()
-            if chosen_lang not in languages:
-                print(f"Invalid language: `{chosen_lang}`")
-            if chosen_lang in aliases:
-                print(f"`{chosen_lang}` is an alias of `{aliases[chosen_lang]}`")
-            else:
-                print(f"`{chosen_lang}` is not an alias")
-        elif chosen_lang.startswith("delete alias "):
-            chosen_lang = chosen_lang.replace("delete alias ", "").strip()
-            if chosen_lang not in languages:
-                print(f"Invalid language: `{chosen_lang}`")
-            if chosen_lang in aliases:
-                await delete_alias(chosen_lang, aliases, languages, database_file_name)
-                print(f"Deleted alias `{chosen_lang}`")
-            else:
-                print(f"`{chosen_lang}` is not an alias")
+        while True:
+            try:
+                choice = input("\x1b[32mrq> \x1b[39m").lower().strip()
+                await parse_choice(
+                    loop, session, database_file_name, languages, aliases, choice
+                )
+            except InputError as e:
+                print(e)
+            if not loop_app:
+                break
+
+
+async def parse_choice(
+    loop,
+    session,
+    database_file_name: str,
+    languages: List[str],
+    aliases: Dict[str, str],
+    choice: str,
+) -> None:
+    if choice == "help":
+        await print_help()
+    elif choice == "exit":
+        sys.exit(0)
+    elif choice.startswith("jargon "):
+        choice = choice.replace("jargon ", "").strip()
+        if choice not in languages:
+            print(f"Invalid language: `{choice}`")
+        await print_jargon(choice, database_file_name)
+    elif choice == "list" or choice.startswith("list "):
+        filter_prefix = ""
+        if choice.startswith("list "):
+            filter_prefix = choice.replace("list ", "").strip()
+        await list_languages(languages, aliases, filter_prefix)
+    elif choice.startswith("alias "):
+        choice = choice.replace("alias ", "").strip()
+        if choice not in languages:
+            print(f"Invalid language: `{choice}`")
+        if choice in aliases:
+            print(f"`{choice}` is an alias of `{aliases[choice]}`")
         else:
-            if chosen_lang not in languages:
-                print(f"Invalid language: `{chosen_lang}`")
-            chosen_lang, code, inputs = await get_code(
-                chosen_lang, aliases, database_file_name
-            )
-            await run_code(
-                loop,
-                session,
-                database_file_name,
-                languages,
-                aliases,
-                chosen_lang,
-                code,
-                inputs,
-            )
+            print(f"`{choice}` is not an alias")
+    elif choice.startswith("delete alias "):
+        choice = choice.replace("delete alias ", "").strip()
+        if choice not in languages:
+            print(f"Invalid language: `{choice}`")
+        if choice in aliases:
+            await delete_alias(choice, aliases, languages, database_file_name)
+            print(f"Deleted alias `{choice}`")
+        else:
+            print(f"`{choice}` is not an alias")
+    else:
+        if choice not in languages:
+            raise InputError(f"Invalid language: `{choice}`")
+        choice, code, inputs = await get_code(
+            choice, aliases, database_file_name
+        )
+        await run_code(
+            loop,
+            session,
+            database_file_name,
+            languages,
+            aliases,
+            choice,
+            code,
+            inputs,
+        )
 
 
 async def load_languages(
@@ -162,6 +186,8 @@ async def print_help() -> None:
             """\
             help
                 Displays this message.
+            exit
+                Closes this app.
             \x1b[90;3m(language)\x1b[0m
                 Selects a language and then asks you for code to run.
             jargon \x1b[90;3m(language)\x1b[0m
@@ -175,8 +201,6 @@ async def print_help() -> None:
                 Shows the base language of an alias.
             delete alias \x1b[90;3m(alias)\x1b[0m
                 Deletes an alias and any jargon it has.
-            
-            For more help, visit https://github.com/wheelercj/run-quick
             """
         )
     )
@@ -287,5 +311,3 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt")
-    except InputError as e:
-        print(e)
