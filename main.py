@@ -44,17 +44,17 @@ def main() -> None:
 
 async def amain(loop, loop_app: bool) -> None:
     async with aiohttp.ClientSession(loop=loop) as session:
-        database_file_name = "run-quick database.db"
-        aliases: Dict[str, str] = await load_aliases(database_file_name)
+        db_file_name = "run-quick database.db"
+        aliases: Dict[str, str] = await load_aliases(db_file_name)
         languages: List[str] = await load_languages(
-            loop, session, database_file_name, aliases
+            loop, session, db_file_name, aliases
         )
-        await init_jargon(database_file_name)
+        await init_jargon(db_file_name)
         while True:
             try:
                 choice = input("\x1b[32mrq> \x1b[39m").lower().strip()
                 await parse_choice(
-                    loop, session, database_file_name, languages, aliases, choice
+                    loop, session, db_file_name, languages, aliases, choice
                 )
             except InputError as e:
                 print(e)
@@ -65,7 +65,7 @@ async def amain(loop, loop_app: bool) -> None:
 async def parse_choice(
     loop,
     session,
-    database_file_name: str,
+    db_file_name: str,
     languages: List[str],
     aliases: Dict[str, str],
     choice: str,
@@ -78,11 +78,11 @@ async def parse_choice(
         language = choice.replace("run ", "").strip()
         if language not in languages:
             raise InputError(f"Invalid language: `{language}`")
-        language, code, inputs = await get_code(language, aliases, database_file_name)
+        language, code, inputs = await get_code(language, aliases, db_file_name)
         await run_code(
             loop,
             session,
-            database_file_name,
+            db_file_name,
             languages,
             aliases,
             language,
@@ -98,22 +98,22 @@ async def parse_choice(
         language = choice.replace("jargon ", "").strip()
         if language not in languages:
             raise InputError(f"Invalid language: `{language}`")
-        await print_jargon(language, database_file_name)
+        await print_jargon(language, db_file_name)
     elif choice.startswith("delete jargon "):
         language = choice.replace("delete jargon ", "").strip()
         if language not in languages:
             raise InputError(f"Invalid language: `{language}`")
-        if not await has_jargon(language, database_file_name):
+        if not await has_jargon(language, db_file_name):
             raise InputError(f"`{language}` has no jargon")
-        await delete_jargon(language, database_file_name)
+        await delete_jargon(language, db_file_name)
         print(f"Jargon for the `{language}` language deleted.")
     elif choice.startswith("alias "):
-        alias_ = choice.replace("alias ", "").strip()
-        if alias_ not in languages:
-            raise InputError(f"Invalid language: `{alias_}`")
-        if alias_ not in aliases:
-            raise InputError(f"`{alias_}` is not an alias")
-        print(f"`{alias_}` is an alias of `{aliases[alias_]}`")
+        alias = choice.replace("alias ", "").strip()
+        if alias not in languages:
+            raise InputError(f"Invalid language: `{alias}`")
+        if alias not in aliases:
+            raise InputError(f"`{alias}` is not an alias")
+        print(f"`{alias}` is an alias of `{aliases[alias]}`")
     elif choice.startswith("create alias "):
         choice = choice.replace("create alias ", "").strip()
         split_choice = choice.split()
@@ -131,20 +131,20 @@ async def parse_choice(
             raise InputError(f"Invalid language: `{language}`")
         if language in aliases:
             language = aliases[language]
-        await create_alias(database_file_name, new_alias, language, aliases, languages)
+        await create_alias(db_file_name, new_alias, language, aliases, languages)
         print(f"Created `{new_alias}` as an alias to `{language}`")
     elif choice.startswith("delete alias "):
-        alias_ = choice.replace("delete alias ", "").strip()
-        if alias_ not in aliases:
-            raise InputError(f"`{alias_}` is not an alias")
-        await delete_alias(alias_, aliases, languages, database_file_name)
-        print(f"Deleted alias `{alias_}`")
+        alias = choice.replace("delete alias ", "").strip()
+        if alias not in aliases:
+            raise InputError(f"`{alias}` is not an alias")
+        await delete_alias(alias, aliases, languages, db_file_name)
+        print(f"Deleted alias `{alias}`")
     else:
         raise InputError("Invalid input. Enter \x1b[100mhelp\x1b[0m for help.")
 
 
 async def load_languages(
-    loop, session, database_file_name: str, aliases: Dict[str, str]
+    loop, session, db_file_name: str, aliases: Dict[str, str]
 ) -> List[str]:
     """Loads all languages from the database.
 
@@ -152,17 +152,17 @@ async def load_languages(
     languages include the aliases.
     """
     try:
-        with sqlite3.connect(database_file_name) as conn:
+        with sqlite3.connect(db_file_name) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT language_name FROM languages")
+            cursor.execute("SELECT language FROM languages")
             languages: List[Tuple[str]] = cursor.fetchall()
             return [e[0] for e in languages]
     except sqlite3.OperationalError:
-        return await create_languages_table(loop, session, database_file_name, aliases)
+        return await create_languages_table(loop, session, db_file_name, aliases)
 
 
-async def save_languages(database_file_name: str, languages: List[str]) -> None:
-    with sqlite3.connect(database_file_name) as conn:
+async def save_languages(db_file_name: str, languages: List[str]) -> None:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         await _save_languages(cursor, languages)
         conn.commit()
@@ -173,7 +173,7 @@ async def _save_languages(cursor, languages: List[str]) -> None:
     cursor.executemany(
         """
         INSERT OR IGNORE INTO languages
-        (language_name)
+        (language)
         VALUES (?);
         """,
         languages,
@@ -181,7 +181,7 @@ async def _save_languages(cursor, languages: List[str]) -> None:
 
 
 async def create_languages_table(
-    loop, session, database_file_name: str, aliases: Dict[str, str]
+    loop, session, db_file_name: str, aliases: Dict[str, str]
 ) -> List[str]:
     """Creates a database table for and returns all languages.
 
@@ -190,14 +190,14 @@ async def create_languages_table(
     async with await async_tio.Tio(loop=loop, session=session) as tio:
         languages = tio.languages
         languages.extend(aliases.keys())
-    with sqlite3.connect(database_file_name) as conn:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
             CREATE TABLE languages (
                 id INTEGER PRIMARY KEY,
-                language_name TEXT NOT NULL,
-                UNIQUE (language_name)
+                language TEXT NOT NULL,
+                UNIQUE (language)
             );
             """
         )
@@ -260,7 +260,7 @@ async def list_languages(
 
 
 async def get_code(
-    chosen_language: str, aliases: Dict[str, str], database_file_name: str
+    chosen_language: str, aliases: Dict[str, str], db_file_name: str
 ) -> Tuple[str, str, str]:
     print(end="\x1b[32mcode: \x1b[90m(")
     if platform == "darwin":
@@ -272,7 +272,7 @@ async def get_code(
     inputs = ""
     if "```" in code:
         code, inputs = await unwrap_code_block(code)
-    code = await wrap_jargon(code, chosen_language, database_file_name)
+    code = await wrap_jargon(code, chosen_language, db_file_name)
     if chosen_language in aliases:
         chosen_language = aliases[chosen_language]
     return chosen_language, code, inputs
@@ -281,7 +281,7 @@ async def get_code(
 async def run_code(
     loop,
     session,
-    database_file_name: str,
+    db_file_name: str,
     languages: List[str],
     aliases: Dict[str, str],
     chosen_language: str,
@@ -292,7 +292,7 @@ async def run_code(
         if len(languages) - len(aliases) != len(tio.languages):
             languages = tio.languages
             languages.extend(aliases.keys())
-            await save_languages(database_file_name, languages)
+            await save_languages(db_file_name, languages)
         response = await tio.execute(code, language=chosen_language, inputs=inputs)
     print(end=f"\x1b[32m`{chosen_language}` output:\x1b[39m\n{response.stdout}")
     if not response.stdout.endswith("\n"):

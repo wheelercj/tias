@@ -3,7 +3,7 @@ from typing import List
 import sqlite3
 
 
-async def create_aliases_table(database_file_name: str) -> Dict[str, str]:
+async def create_aliases_table(db_file_name: str) -> Dict[str, str]:
     """Creates a sqlite table with default aliases and returns all aliases.
 
     Assumes the table does not exist.
@@ -24,22 +24,22 @@ async def create_aliases_table(database_file_name: str) -> Dict[str, str]:
         "python": "python3",
         "swift": "swift4",
     }
-    with sqlite3.connect(database_file_name) as conn:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
             CREATE TABLE aliases (
                 id INTEGER PRIMARY KEY,
-                alias_name TEXT NOT NULL,
-                language_name TEXT NOT NULL,
-                UNIQUE (alias_name)
+                alias TEXT NOT NULL,
+                language TEXT NOT NULL,
+                UNIQUE (alias)
             );
             """
         )
         cursor.executemany(
             """
             INSERT OR IGNORE INTO aliases
-            (alias_name, language_name)
+            (alias, language)
             VALUES (?, ?);
             """,
             default_aliases.items(),
@@ -48,28 +48,28 @@ async def create_aliases_table(database_file_name: str) -> Dict[str, str]:
     return default_aliases
 
 
-async def load_aliases(database_file_name: str) -> Dict[str, str]:
+async def load_aliases(db_file_name: str) -> Dict[str, str]:
     """Loads aliases from the database.
 
     Returns an empty dictionary if there are no aliases.
     """
     try:
-        with sqlite3.connect(database_file_name) as conn:
+        with sqlite3.connect(db_file_name) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT alias_name, language_name FROM aliases")
+            cursor.execute("SELECT alias, language FROM aliases")
             records = cursor.fetchall()
             if not records:
                 return dict()
             all_aliases = dict()
-            for alias_name, language_name in records:
-                all_aliases[alias_name] = language_name
+            for alias, language in records:
+                all_aliases[alias] = language
             return all_aliases
     except sqlite3.OperationalError:
-        return await create_aliases_table(database_file_name)
+        return await create_aliases_table(db_file_name)
 
 
 async def create_alias(
-    database_file_name: str,
+    db_file_name: str,
     new_alias: str,
     language: str,
     aliases: Dict[str, str],
@@ -77,51 +77,51 @@ async def create_alias(
 ) -> None:
     aliases[new_alias] = language
     languages.append(new_alias)
-    with sqlite3.connect(database_file_name) as conn:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
             INSERT INTO languages
-            (language_name)
+            (language)
             VALUES (?);
             """,
-            [new_alias]
+            [new_alias],
         )
         cursor.execute(
             """
             INSERT INTO aliases
-            (alias_name, language_name)
+            (alias, language)
             VALUES (?, ?);
             """,
-            (new_alias, language)
+            (new_alias, language),
         )
 
 
 async def delete_alias(
-    alias: str, aliases: Dict[str, str], languages: List[str], database_file_name: str
+    alias: str, aliases: Dict[str, str], languages: List[str], db_file_name: str
 ):
     del aliases[alias]
     languages.remove(alias)
-    with sqlite3.connect(database_file_name) as conn:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
             DELETE FROM aliases
-            WHERE alias_name = ?;
+            WHERE alias = ?;
             """,
             [alias],
         )
         cursor.execute(
             """
             DELETE FROM languages
-            WHERE language_name = ?;
+            WHERE language = ?;
             """,
             [alias],
         )
         cursor.execute(
             """
             DELETE FROM jargon
-            WHERE alias_or_language_name = ?;
+            WHERE language = ?;
             """,
             [alias],
         )

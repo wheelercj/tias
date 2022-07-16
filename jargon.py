@@ -5,9 +5,9 @@ from typing import Tuple
 import sqlite3
 
 
-async def init_jargon(database_file_name: str) -> None:
+async def init_jargon(db_file_name: str) -> None:
     """Creates a jargon table in the database if it doesn't exist."""
-    with sqlite3.connect(database_file_name) as conn:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -17,12 +17,12 @@ async def init_jargon(database_file_name: str) -> None:
             """
         )
         if not cursor.fetchall():
-            await create_jargon_table(database_file_name)
+            await create_jargon_table(db_file_name)
 
 
-async def print_jargon(language: str, database_file_name: str) -> None:
+async def print_jargon(language: str, db_file_name: str) -> None:
     """Shows the jargon for a language if it has jargon."""
-    jargon, jargon_key = await load_jargon(language, database_file_name)
+    jargon, jargon_key = await load_jargon(language, db_file_name)
     if jargon:
         print(f"\x1b[32mjargon:\x1b[0m\n{jargon}")
         print(f"\x1b[32mjargon key:\x1b[0m {jargon_key}")
@@ -32,13 +32,13 @@ async def print_jargon(language: str, database_file_name: str) -> None:
         )
 
 
-async def create_jargon_table(database_file_name: str) -> None:
+async def create_jargon_table(db_file_name: str) -> None:
     """Creates a sqlite table with default jargon.
 
     Assumes the table does not exist.
     """
     default_jargon: Dict[str, Tuple[str, str]] = await get_default_jargon()
-    with sqlite3.connect(database_file_name) as conn:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -68,7 +68,7 @@ async def save_jargon(language: str, jargon: str, jargon_key: str, cursor) -> No
     )
 
 
-async def load_jargon(language: str, database_file_name: str) -> Tuple[str, str]:
+async def load_jargon(language: str, db_file_name: str) -> Tuple[str, str]:
     """Gets jargon for a language from the database.
 
     Returns empty strings if the language has no jargon.
@@ -81,7 +81,7 @@ async def load_jargon(language: str, database_file_name: str) -> Tuple[str, str]
         The language's "jargon key", i.e. something in an expression that, if
         present, means jargon wrapping is not needed.
     """
-    with sqlite3.connect(database_file_name) as conn:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -98,13 +98,13 @@ async def load_jargon(language: str, database_file_name: str) -> Tuple[str, str]
         return jargon, jargon_key
 
 
-async def wrap_jargon(expression: str, language: str, database_file_name: str) -> str:
+async def wrap_jargon(expression: str, language: str, db_file_name: str) -> str:
     """Wraps code around a given expression if the language has needed jargon.
 
     Returns the expression unchanged if the language has no jargon or if the
     jargon doesn't appear to be needed.
     """
-    jargon, jargon_key = await load_jargon(language, database_file_name)
+    jargon, jargon_key = await load_jargon(language, db_file_name)
     if not jargon:
         return expression
     if jargon_key not in expression:
@@ -112,8 +112,8 @@ async def wrap_jargon(expression: str, language: str, database_file_name: str) -
     return expression
 
 
-async def has_jargon(language: str, database_file_name: str) -> bool:
-    with sqlite3.connect(database_file_name) as conn:
+async def has_jargon(language: str, db_file_name: str) -> bool:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -127,8 +127,8 @@ async def has_jargon(language: str, database_file_name: str) -> bool:
         return bool(records)
 
 
-async def delete_jargon(language: str, database_file_name: str) -> None:
-    with sqlite3.connect(database_file_name) as conn:
+async def delete_jargon(language: str, db_file_name: str) -> None:
+    with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
