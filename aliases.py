@@ -37,18 +37,19 @@ async def create_aliases_table(database_file_name: str) -> Dict[str, str]:
             CREATE TABLE aliases (
                 id INTEGER PRIMARY KEY,
                 alias_name TEXT NOT NULL,
-                language_name TEXT NOT NULL);
+                language_name TEXT NOT NULL,
+                UNIQUE (alias_name)
+            );
             """
         )
-        for alias_name, language_name in default_aliases.items():
-            cursor.execute(
-                """
-                INSERT INTO aliases
-                (alias_name, language_name)
-                VALUES (?, ?);
-                """,
-                (alias_name, language_name),
-            )
+        cursor.executemany(
+            """
+            INSERT OR IGNORE INTO aliases
+            (alias_name, language_name)
+            VALUES (?, ?);
+            """,
+            default_aliases.items(),
+        )
         conn.commit()
     return default_aliases
 

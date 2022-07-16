@@ -1,3 +1,4 @@
+from errors import InputError
 from textwrap import dedent
 from typing import Dict
 from typing import Tuple
@@ -18,7 +19,7 @@ async def print_jargon(alias_or_language_name: str, database_file_name: str) -> 
         print(f"\x1b[32mjargon:\x1b[0m\n{jargon}")
         print(f"\x1b[32mjargon key:\x1b[0m {jargon_key}")
     else:
-        raise ValueError(
+        raise InputError(
             f"No jargon wrapping has been set for the `{alias_or_language_name}`"
             " language"
         )
@@ -49,7 +50,9 @@ async def create_jargon_table(
                 id INTEGER PRIMARY KEY,
                 alias_or_language_name TEXT NOT NULL,
                 jargon TEXT NOT NULL,
-                jargon_key TEXT NOT NULL);
+                jargon_key TEXT NOT NULL,
+                UNIQUE (alias_or_language_name)
+            );
             """
         )
         for alias_or_language_name, (jargon, jargon_key) in default_jargon.items():
@@ -66,11 +69,11 @@ async def save_jargon(
     """Saves to the database the jargon for an alias or language."""
     cursor.execute(
         """
-                INSERT INTO all_jargon
-                (alias_or_language_name, jargon, jargon_key)
-                VALUES (?, ?, ?);
-                """,
+        INSERT OR IGNORE INTO all_jargon
         (alias_or_language_name, jargon, jargon_key)
+        VALUES (?, ?, ?);
+        """,
+        (alias_or_language_name, jargon, jargon_key),
     )
 
 
@@ -98,15 +101,14 @@ async def load_jargon(
                 FROM all_jargon
                 WHERE alias_or_language_name = ?;
                 """,
-                [alias_or_language_name]
+                [alias_or_language_name],
             )
             records = cursor.fetchall()
             if not records:
                 return ("", "")
             jargon, jargon_key = records[0]
             return jargon, jargon_key
-    except sqlite3.OperationalError as e:
-        print(f"sqlite3 error: {e}")
+    except sqlite3.OperationalError:
         return await create_jargon_table(alias_or_language_name, database_file_name)
 
 

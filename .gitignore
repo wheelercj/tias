@@ -1,5 +1,4 @@
-valid_languages.json
-database.db
+run-quick database.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
