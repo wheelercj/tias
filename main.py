@@ -1,3 +1,11 @@
+from aliases import dealias
+from aliases import load_aliases
+from jargon import print_jargon
+from jargon import wrap_jargon
+from textwrap import dedent
+from typing import Dict
+from typing import List
+from typing import Tuple
 import aiohttp  # https://docs.aiohttp.org/en/stable/
 import argparse
 import async_tio  # https://pypi.org/project/async-tio/
@@ -5,12 +13,13 @@ import asyncio
 import json
 import keyboard  # https://pypi.org/project/keyboard/
 import platform
-from textwrap import dedent
-from typing import List
-from typing import Tuple
 
 
 VERSION = "0.3.0"
+
+
+class InputError(Exception):
+    pass
 
 
 def init_argparse() -> argparse.ArgumentParser:
@@ -31,16 +40,19 @@ def main() -> None:
 
 async def amain(loop) -> None:
     async with aiohttp.ClientSession(loop=loop) as session:
-        file_name = "valid_languages.json"
-        languages, aliases = await get_languages(loop, session, file_name)
+        languages_file_name = "valid_languages.json"
+        database_file_name = "database.db"
+        languages, aliases = await get_languages(
+            loop, session, languages_file_name, database_file_name
+        )
         chosen_language = input("\x1b[32mlanguage: \x1b[39m").lower().strip()
         if chosen_language == "help":
             await print_help()
         elif chosen_language.endswith(" jargon"):
             chosen_language = chosen_language[: -len(" jargon")].strip()
             if chosen_language not in languages:
-                raise ValueError(f"Invalid language: `{chosen_language}`")
-            await print_jargon(chosen_language)
+                raise InputError(f"Invalid language: `{chosen_language}`")
+            await print_jargon(chosen_language, database_file_name)
         elif chosen_language.startswith("list"):
             filter_prefix = ""
             if len(chosen_language) > len("list"):
@@ -48,12 +60,14 @@ async def amain(loop) -> None:
             await list_languages(languages, aliases, filter_prefix)
         else:
             if chosen_language not in languages:
-                raise ValueError(f"Invalid language: `{chosen_language}`")
-            chosen_language, code, inputs = await get_code(chosen_language)
+                raise InputError(f"Invalid language: `{chosen_language}`")
+            chosen_language, code, inputs = await get_code(
+                chosen_language, aliases, database_file_name
+            )
             await run_code(
                 loop,
                 session,
-                file_name,
+                languages_file_name,
                 languages,
                 aliases,
                 chosen_language,
@@ -62,43 +76,26 @@ async def amain(loop) -> None:
             )
 
 
-async def get_languages(loop, session, file_name: str) -> Tuple[List[str], List[str]]:
-    aliases = [
-        "c",
-        "c#",
-        "c++",
-        "cpp",
-        "cs",
-        "f#",
-        "fs",
-        "java",
-        "javascript",
-        "js",
-        "objective-c",
-        "py",
-        "python",
-        "swift",
-    ]
-    file_exists = True
+async def get_languages(
+    loop, session, languages_file_name: str, database_file_name: str
+) -> Tuple[List[str], Dict[str, str]]:
+    aliases: Dict[str, str] = await load_aliases(database_file_name)
     try:
-        with open(file_name, "r", encoding="utf8") as file:
+        with open(languages_file_name, "r", encoding="utf8") as file:
             languages = json.load(file)
-            for alias in aliases:
+            for alias in aliases.keys():
                 if alias not in languages:
                     languages.append(alias)
-            return languages, aliases
     except FileNotFoundError:
-        file_exists = False
-    async with await async_tio.Tio(loop=loop, session=session) as tio:
-        languages = tio.languages
-        languages.extend(aliases)
-        if not file_exists:
-            await save_languages(file_name, languages)
-        return languages, aliases
+        async with await async_tio.Tio(loop=loop, session=session) as tio:
+            languages = tio.languages
+            languages.extend(aliases.keys())
+            await save_languages(languages_file_name, languages)
+    return languages, aliases
 
 
-async def save_languages(file_name: str, languages: List[str]) -> None:
-    with open(file_name, "w", encoding="utf8") as file:
+async def save_languages(languages_file_name: str, languages: List[str]) -> None:
+    with open(languages_file_name, "w", encoding="utf8") as file:
         json.dump(languages, file)
 
 
@@ -108,50 +105,24 @@ async def print_help() -> None:
             """\
             help
                 Displays this message.
-            \x1b[90;3mlanguage\x1b[0m
-                Allows you to enter code to run in a chosen language.
-            \x1b[90;3mlanguage\x1b[0m jargon
+            \x1b[90;3m(language)\x1b[0m
+                Selects a language and then asks you for code to run.
+            \x1b[90;3m(language)\x1b[0m jargon
                 Shows the code that can wrap around your code in a chosen language.
             list
                 Shows all supported languages and all of their aliases.
-            list \x1b[90;3mprefix\x1b[0m
+            list \x1b[90;3m(prefix)\x1b[0m
                 Shows all supported languages and aliases that start with a chosen
                 prefix.
+            
+            For more help, visit https://github.com/wheelercj/run-quick
             """
         )
     )
 
 
-async def print_jargon(language: str) -> None:
-    """Shows the jargon for a language, if it has jargon."""
-    if language in ("c", "c-clang"):
-        print(get_c_jargon_header())
-    elif language in ("c++", "cpp", "cpp-clang"):
-        print(get_cpp_jargon_header())
-    elif language in ("c#", "cs", "cs-csc"):
-        print(get_cs_jargon_header())
-    elif language == "dart":
-        print(get_dart_jargon_header())
-    elif language == "go":
-        print(get_go_jargon_header())
-    elif language in ("java", "java-openjdk"):
-        print(get_java_jargon_header())
-    elif language == "kotlin":
-        print(get_kotlin_jargon_header())
-    elif language.startswith("objective-c"):
-        print(get_objective_c_jargon_header())
-    elif language == "rust":
-        print(get_rust_jargon_header())
-    elif language == "scala":
-        print(get_scala_jargon_header())
-    else:
-        raise ValueError(
-            f"No jargon wrapping has been set for the `{language}` language"
-        )
-
-
 async def list_languages(
-    valid_languages: List[str], aliases: List[str], filter_prefix: str
+    valid_languages: List[str], aliases: Dict[str, str], filter_prefix: str
 ) -> None:
     """Lists supported languages, optionally filtered by a prefix."""
     if filter_prefix:
@@ -159,12 +130,9 @@ async def list_languages(
             filter(lambda s: s.startswith(filter_prefix), valid_languages)
         )
         lang_count = len(valid_languages)
-        print(
-            f"languages that start with `{filter_prefix}` ({lang_count}): ",
-            end="",
-        )
+        print(end=f"languages that start with `{filter_prefix}` ({lang_count}): ")
     else:
-        print(f"languages ({len(valid_languages) - len(aliases)}): ", end="")
+        print(end=f"languages ({len(valid_languages) - len(aliases)}): ")
     valid_languages = sorted(valid_languages)
     alias_included = False
     for i, language in enumerate(valid_languages):
@@ -177,7 +145,9 @@ async def list_languages(
         print("\x1b[90m(Aliases are shown in blue).\x1b[0m")
 
 
-async def get_code(chosen_language: str) -> Tuple[str, str, str]:
+async def get_code(
+    chosen_language: str, aliases: Dict[str, str], database_file_name: str
+) -> Tuple[str, str, str]:
     print(end="\x1b[32mcode: \x1b[90m(")
     if platform == "darwin":
         print(end="cmd")
@@ -187,18 +157,18 @@ async def get_code(chosen_language: str) -> Tuple[str, str, str]:
     code: str = Input().get_code()
     inputs = ""
     if "```" in code:
-        _, code, inputs = await unwrap_code_block(code)
-    code = await wrap_jargon(chosen_language, code)
-    chosen_language = await dealias(chosen_language)
+        code, inputs = await unwrap_code_block(code)
+    code = await wrap_jargon(code, chosen_language, database_file_name)
+    chosen_language = await dealias(chosen_language, aliases)
     return chosen_language, code, inputs
 
 
 async def run_code(
     loop,
     session,
-    file_name: str,
+    languages_file_name: str,
     languages: List[str],
-    aliases: List[str],
+    aliases: Dict[str, str],
     chosen_language: str,
     code: str,
     inputs: str,
@@ -206,10 +176,10 @@ async def run_code(
     async with await async_tio.Tio(loop=loop, session=session) as tio:
         if len(languages) - len(aliases) != len(tio.languages):
             languages = tio.languages
-            languages.extend(aliases)
-            await save_languages(file_name, languages)
+            languages.extend(aliases.keys())
+            await save_languages(languages_file_name, languages)
         response = await tio.execute(code, language=chosen_language, inputs=inputs)
-    print(f"\x1b[32m`{chosen_language}` output:\x1b[39m\n{response.stdout}", end="")
+    print(end=f"\x1b[32m`{chosen_language}` output:\x1b[39m\n{response.stdout}")
     if not response.stdout.endswith("\n"):
         print()
     print(f"\x1b[32mexit status: \x1b[39m{response.exit_status}")
@@ -227,34 +197,20 @@ class Input:
         return "\n".join(self.lines)
 
     def _toggle_receiving_input(self) -> None:
-        keyboard.write("\n")  # Some terminals require this for the `input` call to end.
+        keyboard.write("\n")  # Some terminals require this for `input` to return.
         self.receiving_input = not self.receiving_input
 
 
-async def unwrap_code_block(statement: str) -> Tuple[str, str, str]:
-    """Removes triple backticks and a syntax name around a code block.
+async def unwrap_code_block(statement: str) -> Tuple[str, str]:
+    """Removes triple backticks around a code block.
 
-    Returns any syntax name found, the unwrapped code, and anything after
-    closing triple backticks. Any syntax name must be on the same line as the
-    leading triple backticks, and code must be on the next line(s). If there
-    are not triple backticks, the returns are 'txt' and the unchanged input. If
-    there are triple backticks and no syntax is specified, the first two
-    returns will be 'txt' and the unwrapped code block. If there is nothing
-    after the closing triple backticks, the third returned value will be an
-    empty string. The result is not dedented. Closing triple backticks are
-    optional (unless something is needed after them).
+    Returns the input unchanged and an empty string if there are no triple
+    backticks. Anything after closing triple backticks is returned as the
+    second string. Closing triple backticks are otherwise optional.
     """
-    syntax = "txt"
     if not statement.startswith("```"):
-        return syntax, statement, ""
+        return statement, ""
     statement = statement[3:]
-    # Find the syntax name if one is given.
-    i = statement.find("\n")
-    if i != -1:
-        first_line = statement[:i].strip()
-        if len(first_line):
-            syntax = first_line
-            statement = statement[i:]
     if statement.startswith("\n"):
         statement = statement[1:]
     suffix = ""
@@ -262,205 +218,7 @@ async def unwrap_code_block(statement: str) -> Tuple[str, str, str]:
         statement, suffix = statement.split("```", 1)
     if statement.endswith("\n"):
         statement = statement[:-1]
-    return syntax, statement, suffix
-
-
-async def dealias(language: str) -> str:
-    """Changes aliases to default languages, returns default languages unchanged."""
-    if language == "c":
-        language = "c-clang"
-    elif language in ("cpp", "c++"):
-        language = "cpp-clang"
-    if language in ("cs", "c#"):
-        language = "cs-csc"
-    elif language in ("fs", "f#"):
-        language = "fs-core"
-    if language == "java":
-        language = "java-openjdk"
-    elif language == "js":
-        language = "javascript-node"
-    if language == "objective-c":
-        language = "objective-c-clang"
-    elif language in ("py", "python", "txt"):
-        language = "python3"
-    elif language == "swift":
-        language = "swift4"
-    return language
-
-
-async def wrap_jargon(language: str, expression: str) -> str:
-    """Wraps code around an expression if jargon exists and is needed."""
-    if language in ("c", "c-clang", "c-gcc", "c-tcc"):
-        if "int main(" not in expression:
-            expression = wrap_with_c_jargon(expression)
-    elif language in ("cpp", "c++", "cpp-clang", "cpp-gcc"):
-        if "int main(" not in expression:
-            expression = wrap_with_cpp_jargon(expression)
-    elif language in ( "cs", "c#", "cs-core", "cs-csc", "cs-csi", "cs-mono"):
-        if "static void Main(" not in expression:
-            expression = wrap_with_cs_jargon(expression)
-    elif language == "dart":
-        if "void main(" not in expression:
-            expression = wrap_with_dart_jargon(expression)
-    elif language == "go":
-        if "func main(" not in expression:
-            expression = wrap_with_go_jargon(expression)
-    elif language in ("java", "java-jdk", "java-openjdk"):
-        if "public static void main(" not in expression:
-            expression = wrap_with_java_jargon(expression)
-    elif language == "kotlin":
-        if "fun main(" not in expression:
-            expression = wrap_with_kotlin_jargon(expression)
-    elif language in ("objective-c", "objective-c-clang", "objective-c-gcc"):
-        if "int main(" not in expression:
-            expression = wrap_with_objective_c_jargon(expression)
-    elif language == "rust":
-        if "fn main(" not in expression:
-            expression = wrap_with_rust_jargon(expression)
-    elif language == "scala":
-        if "object Main" not in expression:
-            expression = wrap_with_scala_jargon(expression)
-
-    return expression
-
-
-def wrap_with_c_jargon(expression: str) -> str:
-    return get_c_jargon_header() + expression + "}"
-
-
-def wrap_with_cpp_jargon(expression: str) -> str:
-    return get_cpp_jargon_header() + expression + "}"
-
-
-def wrap_with_cs_jargon(expression: str) -> str:
-    return get_cs_jargon_header() + expression + "}}}"
-
-
-def wrap_with_dart_jargon(expression: str) -> str:
-    return get_dart_jargon_header() + expression + "}"
-
-
-def wrap_with_go_jargon(expression: str) -> str:
-    return get_go_jargon_header() + expression + "}"
-
-
-def wrap_with_java_jargon(expression: str) -> str:
-    return get_java_jargon_header() + expression + "}}"
-
-
-def wrap_with_kotlin_jargon(expression: str) -> str:
-    return get_kotlin_jargon_header() + expression + "}"
-
-
-def wrap_with_objective_c_jargon(expression: str) -> str:
-    return get_objective_c_jargon_header() + expression + "}"
-
-
-def wrap_with_rust_jargon(expression: str) -> str:
-    return get_rust_jargon_header() + expression + "}"
-
-
-def wrap_with_scala_jargon(expression: str) -> str:
-    return get_scala_jargon_header() + expression + "}"
-
-
-def get_c_jargon_header() -> str:
-    return dedent(
-        """
-        #include <ctype.h>
-        #include <math.h>
-        #include <stdbool.h>
-        #include <stdio.h>
-        #include <stdlib.h>
-        #include <string.h>
-        #include <time.h>
-
-        int main(void) {
-        """
-    )
-
-
-def get_cpp_jargon_header() -> str:
-    return dedent(
-        """
-        #include <algorithm>
-        #include <cctype>
-        #include <cstring>
-        #include <ctime>
-        #include <fstream>
-        #include <iomanip>
-        #include <iostream>
-        #include <math.h>
-        #include <numeric>
-        #include <sstream>
-        #include <stdio.h>
-        #include <string>
-        #include <vector>
-        using namespace std;
-
-        int main() {
-        """
-    )
-
-
-def get_cs_jargon_header() -> str:
-    return dedent(
-        """
-        namespace MyNamespace {
-            class MyClass {         
-                static void Main(string[] args) {
-        """
-    )
-
-
-def get_dart_jargon_header() -> str:
-    return "void main() {"
-
-
-def get_go_jargon_header() -> str:
-    return dedent(
-        """
-        package main
-        import "fmt"
-
-        func main() {
-        """
-    )
-
-
-def get_java_jargon_header() -> str:
-    return dedent(
-        """
-        import java.util.*;
-
-        class MyClass {
-            public static void main(String[] args) {
-                Scanner scanner = new Scanner(System.in);
-        """
-    )
-
-
-def get_kotlin_jargon_header() -> str:
-    return "fun main(args : Array<String>) {"
-
-
-def get_objective_c_jargon_header() -> str:
-    return dedent(
-        """
-        #include <stdio.h>
-        // Print with the `puts` function, not `NSLog`.
-        
-        int main() {
-        """
-    )
-
-
-def get_rust_jargon_header() -> str:
-    return "fn main() {"
-
-
-def get_scala_jargon_header() -> str:
-    return "object Main extends App {"
+    return statement, suffix
 
 
 if __name__ == "__main__":
@@ -468,5 +226,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt")
-    except ValueError as e:
+    except InputError as e:
         print(e)
