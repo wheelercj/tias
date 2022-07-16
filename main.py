@@ -31,18 +31,16 @@ def init_argparse() -> argparse.ArgumentParser:
         epilog="For tips, the source code, discussions, and more, visit https://github.com/wheelercj/run-quick",
     )
     parser.add_argument("-v", "--version", action="version", version=f"v{VERSION}")
-    parser.add_argument("-l", "--loop", action="store_true", help="makes the app loop")
     return parser
 
 
 def main() -> None:
-    args: argparse.Namespace = init_argparse().parse_args()
-    loop_app: bool = args.loop
+    _ = init_argparse().parse_args()
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(amain(loop, loop_app))
+    loop.run_until_complete(amain(loop))
 
 
-async def amain(loop, loop_app: bool) -> None:
+async def amain(loop) -> None:
     async with aiohttp.ClientSession(loop=loop) as session:
         db_file_name = "run-quick database.db"
         aliases: Dict[str, str] = await load_aliases(db_file_name)
@@ -58,8 +56,6 @@ async def amain(loop, loop_app: bool) -> None:
                 )
             except InputError as e:
                 print(e)
-            if not loop_app:
-                break
 
 
 async def parse_choice(
