@@ -2,6 +2,8 @@ from aliases import create_alias
 from aliases import delete_alias
 from aliases import load_aliases
 from errors import InputError
+from jargon import delete_jargon
+from jargon import has_jargon
 from jargon import init_jargon
 from jargon import print_jargon
 from jargon import wrap_jargon
@@ -87,16 +89,24 @@ async def parse_choice(
             code,
             inputs,
         )
-    elif choice.startswith("jargon "):
-        language = choice.replace("jargon ", "").strip()
-        if language not in languages:
-            raise InputError(f"Invalid language: `{language}`")
-        await print_jargon(language, database_file_name)
     elif choice == "list" or choice.startswith("list "):
         filter_prefix = ""
         if choice.startswith("list "):
             filter_prefix = choice.replace("list ", "").strip()
         await list_languages(languages, aliases, filter_prefix)
+    elif choice.startswith("jargon "):
+        language = choice.replace("jargon ", "").strip()
+        if language not in languages:
+            raise InputError(f"Invalid language: `{language}`")
+        await print_jargon(language, database_file_name)
+    elif choice.startswith("delete jargon "):
+        language = choice.replace("delete jargon ", "").strip()
+        if language not in languages:
+            raise InputError(f"Invalid language: `{language}`")
+        if not await has_jargon(language, database_file_name):
+            raise InputError(f"`{language}` has no jargon")
+        await delete_jargon(language, database_file_name)
+        print(f"Jargon for the `{language}` language deleted.")
     elif choice.startswith("alias "):
         alias_ = choice.replace("alias ", "").strip()
         if alias_ not in languages:
@@ -110,7 +120,7 @@ async def parse_choice(
         if len(split_choice) != 2:
             raise InputError(
                 'Error: expected two words after "create alias": '
-                'the new alias and the language being aliased'
+                "the new alias and the language being aliased"
             )
         new_alias, language = split_choice
         if new_alias in aliases:
@@ -206,12 +216,14 @@ async def print_help() -> None:
                 Closes this app.
             run \x1b[90;3m(language)\x1b[0m
                 Selects a language and then asks you for code to run.
-            jargon \x1b[90;3m(language)\x1b[0m
-                Shows the code that can wrap around your code in a chosen language.
             list
                 Shows all supported languages.
             list \x1b[90;3m(prefix)\x1b[0m
                 Shows all supported languages that start with a chosen prefix.
+            jargon \x1b[90;3m(language)\x1b[0m
+                Shows the code that can wrap around your code in a chosen language.
+            delete jargon \x1b[90;3m(language)\x1b[0m
+                Deletes the jargon for a language.
             alias \x1b[90;3m(alias)\x1b[0m
                 Shows the language an alias is an alias of.
             create alias \x1b[90;3m(new alias)\x1b[0m \x1b[90;3m(language)\x1b[0m

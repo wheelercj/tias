@@ -20,16 +20,15 @@ async def init_jargon(database_file_name: str) -> None:
             await create_jargon_table(database_file_name)
 
 
-async def print_jargon(alias_or_language_name: str, database_file_name: str) -> None:
+async def print_jargon(language: str, database_file_name: str) -> None:
     """Shows the jargon for a language if it has jargon."""
-    jargon, jargon_key = await load_jargon(alias_or_language_name, database_file_name)
+    jargon, jargon_key = await load_jargon(language, database_file_name)
     if jargon:
         print(f"\x1b[32mjargon:\x1b[0m\n{jargon}")
         print(f"\x1b[32mjargon key:\x1b[0m {jargon_key}")
     else:
         raise InputError(
-            f"No jargon wrapping has been set for the `{alias_or_language_name}`"
-            " language"
+            f"No jargon wrapping has been set for the `{language}` language"
         )
 
 
@@ -45,38 +44,34 @@ async def create_jargon_table(database_file_name: str) -> None:
             """
             CREATE TABLE jargon (
                 id INTEGER PRIMARY KEY,
-                alias_or_language_name TEXT NOT NULL,
+                language TEXT NOT NULL,
                 jargon_text TEXT NOT NULL,
                 jargon_key TEXT NOT NULL,
-                UNIQUE (alias_or_language_name)
+                UNIQUE (language)
             );
             """
         )
-        for alias_or_language_name, (jargon, jargon_key) in default_jargon.items():
-            await save_jargon(alias_or_language_name, jargon, jargon_key, cursor)
+        for language, (jargon, jargon_key) in default_jargon.items():
+            await save_jargon(language, jargon, jargon_key, cursor)
         conn.commit()
 
 
-async def save_jargon(
-    alias_or_language_name: str, jargon: str, jargon_key: str, cursor
-) -> None:
-    """Saves to the database the jargon for an alias or language."""
+async def save_jargon(language: str, jargon: str, jargon_key: str, cursor) -> None:
+    """Saves to the database the jargon for a language."""
     cursor.execute(
         """
         INSERT OR IGNORE INTO jargon
-        (alias_or_language_name, jargon_text, jargon_key)
+        (language, jargon_text, jargon_key)
         VALUES (?, ?, ?);
         """,
-        (alias_or_language_name, jargon, jargon_key),
+        (language, jargon, jargon_key),
     )
 
 
-async def load_jargon(
-    alias_or_language_name: str, database_file_name: str
-) -> Tuple[str, str]:
-    """Gets jargon for an alias or language from the database.
+async def load_jargon(language: str, database_file_name: str) -> Tuple[str, str]:
+    """Gets jargon for a language from the database.
 
-    Returns empty strings if the alias or language has no jargon.
+    Returns empty strings if the language has no jargon.
 
     Returns
     -------
@@ -92,9 +87,9 @@ async def load_jargon(
             """
             SELECT jargon_text, jargon_key
             FROM jargon
-            WHERE alias_or_language_name = ?;
+            WHERE language = ?;
             """,
-            [alias_or_language_name],
+            [language],
         )
         records = cursor.fetchall()
         if not records:
@@ -103,15 +98,13 @@ async def load_jargon(
         return jargon, jargon_key
 
 
-async def wrap_jargon(
-    expression: str, alias_or_language_name: str, database_file_name: str
-) -> str:
+async def wrap_jargon(expression: str, language: str, database_file_name: str) -> str:
     """Wraps code around a given expression if the language has needed jargon.
 
     Returns the expression unchanged if the language has no jargon or if the
     jargon doesn't appear to be needed.
     """
-    jargon, jargon_key = await load_jargon(alias_or_language_name, database_file_name)
+    jargon, jargon_key = await load_jargon(language, database_file_name)
     if not jargon:
         return expression
     if jargon_key not in expression:
@@ -119,9 +112,36 @@ async def wrap_jargon(
     return expression
 
 
+async def has_jargon(language: str, database_file_name: str) -> bool:
+    with sqlite3.connect(database_file_name) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM jargon
+            WHERE language = ?;
+            """,
+            [language],
+        )
+        records = cursor.fetchall()
+        return bool(records)
+
+
+async def delete_jargon(language: str, database_file_name: str) -> None:
+    with sqlite3.connect(database_file_name) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            DELETE FROM jargon
+            WHERE language = ?;
+            """,
+            [language],
+        )
+
+
 async def get_default_jargon() -> Dict[str, Tuple[str, str]]:
     default_jargon: Dict[str, Tuple[str, str]] = {
-        # keys: the alias or language name
+        # keys: the language
         # values:
         #   * the jargon
         #   * the "jargon key"
