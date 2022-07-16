@@ -3,13 +3,6 @@ from typing import List
 import sqlite3
 
 
-async def dealias(language: str, aliases: Dict[str, str]) -> str:
-    """Changes aliases to default languages, returns default languages unchanged."""
-    if language in aliases:
-        return aliases[language]
-    return language
-
-
 async def create_aliases_table(database_file_name: str) -> Dict[str, str]:
     """Creates a sqlite table with default aliases and returns all aliases.
 
@@ -73,6 +66,35 @@ async def load_aliases(database_file_name: str) -> Dict[str, str]:
             return all_aliases
     except sqlite3.OperationalError:
         return await create_aliases_table(database_file_name)
+
+
+async def create_alias(
+    database_file_name: str,
+    new_alias: str,
+    language: str,
+    aliases: Dict[str, str],
+    languages: List[str],
+) -> None:
+    aliases[new_alias] = language
+    languages.append(new_alias)
+    with sqlite3.connect(database_file_name) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO languages
+            (language_name)
+            VALUES (?);
+            """,
+            [new_alias]
+        )
+        cursor.execute(
+            """
+            INSERT INTO aliases
+            (alias_name, language_name)
+            VALUES (?, ?);
+            """,
+            (new_alias, language)
+        )
 
 
 async def delete_alias(

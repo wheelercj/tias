@@ -1,4 +1,4 @@
-from aliases import dealias
+from aliases import create_alias
 from aliases import delete_alias
 from aliases import load_aliases
 from errors import InputError
@@ -75,7 +75,7 @@ async def parse_choice(
     elif choice.startswith("jargon "):
         choice = choice.replace("jargon ", "").strip()
         if choice not in languages:
-            print(f"Invalid language: `{choice}`")
+            raise InputError(f"Invalid language: `{choice}`")
         await print_jargon(choice, database_file_name)
     elif choice == "list" or choice.startswith("list "):
         filter_prefix = ""
@@ -85,15 +85,32 @@ async def parse_choice(
     elif choice.startswith("alias "):
         choice = choice.replace("alias ", "").strip()
         if choice not in languages:
-            print(f"Invalid language: `{choice}`")
+            raise InputError(f"Invalid language: `{choice}`")
         if choice in aliases:
             print(f"`{choice}` is an alias of `{aliases[choice]}`")
         else:
             print(f"`{choice}` is not an alias")
+    elif choice.startswith("create alias "):
+        choice = choice.replace("create alias ", "").strip()
+        split_choice = choice.split()
+        if len(split_choice) != 2:
+            raise InputError(
+                'Error: expected two words after "create alias": '
+                'the new alias and the language being aliased'
+            )
+        new_alias, language = split_choice
+        if new_alias in aliases:
+            raise InputError(f"`{new_alias}` is already an alias.")
+        if new_alias in languages:
+            raise InputError(f"`{new_alias}` is already a language.")
+        if language in aliases:
+            language = aliases[language]
+        await create_alias(database_file_name, new_alias, language, aliases, languages)
+        print(f"Created `{new_alias}` as an alias to `{language}`")
     elif choice.startswith("delete alias "):
         choice = choice.replace("delete alias ", "").strip()
         if choice not in languages:
-            print(f"Invalid language: `{choice}`")
+            raise InputError(f"Invalid language: `{choice}`")
         if choice in aliases:
             await delete_alias(choice, aliases, languages, database_file_name)
             print(f"Deleted alias `{choice}`")
@@ -102,9 +119,7 @@ async def parse_choice(
     else:
         if choice not in languages:
             raise InputError(f"Invalid language: `{choice}`")
-        choice, code, inputs = await get_code(
-            choice, aliases, database_file_name
-        )
+        choice, code, inputs = await get_code(choice, aliases, database_file_name)
         await run_code(
             loop,
             session,
@@ -199,6 +214,8 @@ async def print_help() -> None:
                 prefix.
             alias \x1b[90;3m(alias)\x1b[0m
                 Shows the base language of an alias.
+            create alias \x1b[90;3m(alias)\x1b[0m \x1b[90;3m(language)\x1b[0m
+                Creates a new alias for a chosen language.
             delete alias \x1b[90;3m(alias)\x1b[0m
                 Deletes an alias and any jargon it has.
             """
@@ -244,7 +261,8 @@ async def get_code(
     if "```" in code:
         code, inputs = await unwrap_code_block(code)
     code = await wrap_jargon(code, chosen_language, database_file_name)
-    chosen_language = await dealias(chosen_language, aliases)
+    if chosen_language in aliases:
+        chosen_language = aliases[chosen_language]
     return chosen_language, code, inputs
 
 
