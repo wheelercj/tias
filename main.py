@@ -72,24 +72,38 @@ async def parse_choice(
         await print_help()
     elif choice == "exit":
         sys.exit(0)
+    elif choice.startswith("run "):
+        language = choice.replace("run ", "").strip()
+        if language not in languages:
+            raise InputError(f"Invalid language: `{language}`")
+        language, code, inputs = await get_code(language, aliases, database_file_name)
+        await run_code(
+            loop,
+            session,
+            database_file_name,
+            languages,
+            aliases,
+            language,
+            code,
+            inputs,
+        )
     elif choice.startswith("jargon "):
-        choice = choice.replace("jargon ", "").strip()
-        if choice not in languages:
-            raise InputError(f"Invalid language: `{choice}`")
-        await print_jargon(choice, database_file_name)
+        language = choice.replace("jargon ", "").strip()
+        if language not in languages:
+            raise InputError(f"Invalid language: `{language}`")
+        await print_jargon(language, database_file_name)
     elif choice == "list" or choice.startswith("list "):
         filter_prefix = ""
         if choice.startswith("list "):
             filter_prefix = choice.replace("list ", "").strip()
         await list_languages(languages, aliases, filter_prefix)
     elif choice.startswith("alias "):
-        choice = choice.replace("alias ", "").strip()
-        if choice not in languages:
-            raise InputError(f"Invalid language: `{choice}`")
-        if choice in aliases:
-            print(f"`{choice}` is an alias of `{aliases[choice]}`")
-        else:
-            print(f"`{choice}` is not an alias")
+        alias_ = choice.replace("alias ", "").strip()
+        if alias_ not in languages:
+            raise InputError(f"Invalid language: `{alias_}`")
+        if alias_ not in aliases:
+            raise InputError(f"`{alias_}` is not an alias")
+        print(f"`{alias_}` is an alias of `{aliases[alias_]}`")
     elif choice.startswith("create alias "):
         choice = choice.replace("create alias ", "").strip()
         split_choice = choice.split()
@@ -103,33 +117,20 @@ async def parse_choice(
             raise InputError(f"`{new_alias}` is already an alias.")
         if new_alias in languages:
             raise InputError(f"`{new_alias}` is already a language.")
+        if language not in languages:
+            raise InputError(f"Invalid language: `{language}`")
         if language in aliases:
             language = aliases[language]
         await create_alias(database_file_name, new_alias, language, aliases, languages)
         print(f"Created `{new_alias}` as an alias to `{language}`")
     elif choice.startswith("delete alias "):
-        choice = choice.replace("delete alias ", "").strip()
-        if choice not in languages:
-            raise InputError(f"Invalid language: `{choice}`")
-        if choice in aliases:
-            await delete_alias(choice, aliases, languages, database_file_name)
-            print(f"Deleted alias `{choice}`")
-        else:
-            print(f"`{choice}` is not an alias")
+        alias_ = choice.replace("delete alias ", "").strip()
+        if alias_ not in aliases:
+            raise InputError(f"`{alias_}` is not an alias")
+        await delete_alias(alias_, aliases, languages, database_file_name)
+        print(f"Deleted alias `{alias_}`")
     else:
-        if choice not in languages:
-            raise InputError(f"Invalid language: `{choice}`")
-        choice, code, inputs = await get_code(choice, aliases, database_file_name)
-        await run_code(
-            loop,
-            session,
-            database_file_name,
-            languages,
-            aliases,
-            choice,
-            code,
-            inputs,
-        )
+        raise InputError("Invalid input. Enter \x1b[100mhelp\x1b[0m for help.")
 
 
 async def load_languages(
@@ -203,18 +204,17 @@ async def print_help() -> None:
                 Displays this message.
             exit
                 Closes this app.
-            \x1b[90;3m(language)\x1b[0m
+            run \x1b[90;3m(language)\x1b[0m
                 Selects a language and then asks you for code to run.
             jargon \x1b[90;3m(language)\x1b[0m
                 Shows the code that can wrap around your code in a chosen language.
             list
-                Shows all supported languages and all of their aliases.
+                Shows all supported languages.
             list \x1b[90;3m(prefix)\x1b[0m
-                Shows all supported languages and aliases that start with a chosen
-                prefix.
+                Shows all supported languages that start with a chosen prefix.
             alias \x1b[90;3m(alias)\x1b[0m
-                Shows the base language of an alias.
-            create alias \x1b[90;3m(alias)\x1b[0m \x1b[90;3m(language)\x1b[0m
+                Shows the language an alias is an alias of.
+            create alias \x1b[90;3m(new alias)\x1b[0m \x1b[90;3m(language)\x1b[0m
                 Creates a new alias for a chosen language.
             delete alias \x1b[90;3m(alias)\x1b[0m
                 Deletes an alias and any jargon it has.
