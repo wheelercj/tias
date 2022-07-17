@@ -1,4 +1,5 @@
 from errors import InputError
+from multiline_input import get_lines
 from textwrap import dedent
 from typing import Dict
 from typing import Tuple
@@ -125,6 +126,36 @@ async def has_jargon(language: str, db_file_name: str) -> bool:
         )
         records = cursor.fetchall()
         return bool(records)
+
+
+async def create_jargon(language: str, db_file_name: str) -> None:
+    """Gets input for and adds jargon to the database.
+
+    Assumes the language does not already have jargon.
+    """
+    print("Enter \x1b[100mINSERT_HERE\x1b[0m where you want code to be inserted.")
+    print(end="\x1b[32mjargon: \x1b[0m")
+    jargon = get_lines()
+    if "INSERT_HERE" not in jargon:
+        raise InputError("Error: the jargon must contain \x1b[100mINSERT_HERE\x1b[0m")
+    print("\x1b[32m---\x1b[0m")
+    print("Enter the jargon's key, i.e. a piece of code that, if present")
+    print("within code submitted to run, means jargon wrapping is not needed.")
+    print(end="\x1b[32mjargon key: \x1b[0m")
+    jargon_key = get_lines()
+    print("\x1b[32m---\x1b[0m")
+    if not jargon_key:
+        raise InputError("The jargon key must not be empty")
+    with sqlite3.connect(db_file_name) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO jargon
+            (language, jargon_text, jargon_key)
+            VALUES (?, ?, ?);
+            """,
+            (language, jargon, jargon_key),
+        )
 
 
 async def delete_jargon(language: str, db_file_name: str) -> None:

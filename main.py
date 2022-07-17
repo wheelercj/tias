@@ -2,11 +2,13 @@ from aliases import create_alias
 from aliases import delete_alias
 from aliases import load_aliases
 from errors import InputError
+from jargon import create_jargon
 from jargon import delete_jargon
 from jargon import has_jargon
 from jargon import init_jargon
 from jargon import print_jargon
 from jargon import wrap_jargon
+from multiline_input import get_lines
 from textwrap import dedent
 from typing import Dict
 from typing import List
@@ -15,8 +17,6 @@ import aiohttp  # https://docs.aiohttp.org/en/stable/
 import argparse
 import async_tio  # https://pypi.org/project/async-tio/
 import asyncio
-import keyboard  # https://pypi.org/project/keyboard/
-import platform
 import sqlite3
 import sys
 
@@ -95,6 +95,17 @@ async def parse_choice(
         if language not in languages:
             raise InputError(f"Invalid language: `{language}`")
         await print_jargon(language, db_file_name)
+    elif choice.startswith("create jargon "):
+        language = choice.replace("create jargon ", "").strip()
+        if language not in languages:
+            raise InputError(f"Invalid language: `{language}`")
+        if await has_jargon(language, db_file_name):
+            c = input(f"`{language}` already has jargon. Overwrite? (y/n) ")
+            if c.lower().strip() not in ("y", "yes"):
+                raise InputError("Cancelled creating new jargon.")
+            await delete_jargon(language, db_file_name)
+        await create_jargon(language, db_file_name)
+        print(f"Created jargon for the `{language}` language")
     elif choice.startswith("delete jargon "):
         language = choice.replace("delete jargon ", "").strip()
         if language not in languages:
@@ -218,6 +229,8 @@ async def print_help() -> None:
                 Shows all supported languages that start with a chosen prefix.
             jargon \x1b[90;3m(language)\x1b[0m
                 Shows the code that can wrap around your code in a chosen language.
+            create jargon \x1b[90;3m(language)\x1b[0m
+                Allows you to set the jargon for a language.
             delete jargon \x1b[90;3m(language)\x1b[0m
                 Deletes the jargon for a language.
             alias \x1b[90;3m(alias)\x1b[0m
@@ -258,13 +271,8 @@ async def list_languages(
 async def get_code(
     chosen_language: str, aliases: Dict[str, str], db_file_name: str
 ) -> Tuple[str, str, str]:
-    print(end="\x1b[32mcode: \x1b[90m(")
-    if platform == "darwin":
-        print(end="cmd")
-    else:
-        print(end="ctrl")
-    print("+enter to run)\x1b[39m")
-    code: str = Input().get_code()
+    print(end="\x1b[32mcode: \x1b[0m")
+    code = get_lines()
     inputs = ""
     if "```" in code:
         code, inputs = await unwrap_code_block(code)
@@ -294,22 +302,6 @@ async def run_code(
     if not response.stdout.endswith("\n"):
         print()
     print(f"\x1b[32mexit status: \x1b[39m{response.exit_status}")
-
-
-class Input:
-    def __init__(self) -> None:
-        self.receiving_input = True
-        self.lines = []
-
-    def get_code(self) -> str:
-        keyboard.add_hotkey("ctrl+enter", self._toggle_receiving_input)
-        while self.receiving_input:
-            self.lines.append(input())
-        return "\n".join(self.lines)
-
-    def _toggle_receiving_input(self) -> None:
-        keyboard.write("\n")  # Some terminals require this for `input` to return.
-        self.receiving_input = not self.receiving_input
 
 
 async def unwrap_code_block(statement: str) -> Tuple[str, str]:
