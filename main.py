@@ -243,6 +243,7 @@ async def print_help() -> None:
                 Creates a new alias for a chosen language.
             delete alias \x1b[90;3m(alias)\x1b[0m
                 Deletes an alias and any jargon it has.
+            For more help, visit https://github.com/wheelercj/run-quick\
             """
         )
     )
