@@ -41,7 +41,8 @@ def main() -> None:
 
 
 async def amain(loop) -> None:
-    async with aiohttp.ClientSession(loop=loop) as session:
+    connector = aiohttp.TCPConnector(force_close=True)
+    async with aiohttp.ClientSession(connector=connector) as session:
         db_file_name = "run-quick database.db"
         aliases: Dict[str, str] = await load_aliases(db_file_name)
         languages: List[str] = await load_languages(
