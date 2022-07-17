@@ -75,6 +75,8 @@ async def parse_choice(
         if language not in languages:
             raise InputError(f"Invalid language: `{language}`")
         language, code, inputs = await get_code(language, aliases, db_file_name)
+        if not code:
+            raise InputError("Error: no code given to run.")
         await run_code(
             loop,
             session,
