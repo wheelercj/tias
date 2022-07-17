@@ -102,7 +102,7 @@ async def parse_choice(
         if await has_jargon(language, db_file_name):
             c = input(f"`{language}` already has jargon. Overwrite? (y/n) ")
             if c.lower().strip() not in ("y", "yes"):
-                raise InputError("Cancelled creating new jargon.")
+                raise InputError("Cancelled creating jargon.")
             await delete_jargon(language, db_file_name)
         await create_jargon(language, db_file_name)
         print(f"Created jargon for the `{language}` language")
@@ -126,13 +126,17 @@ async def parse_choice(
         split_choice = choice.split()
         if len(split_choice) != 2:
             raise InputError(
-                'Error: expected two words after "create alias": '
-                "the new alias and the language being aliased"
+                'Error: expected two words after "create alias":\n'
+                "the new alias and the language being aliased."
             )
         new_alias, language = split_choice
         if new_alias in aliases:
-            raise InputError(f"`{new_alias}` is already an alias.")
-        if new_alias in languages:
+            if language == aliases[new_alias]:
+                raise InputError(f"`{new_alias}` is already an alias of `{language}`.")
+            c = input(f"`{new_alias}` is already an alias. Overwrite? (y/n) ")
+            if c.lower().split() not in ("y", "yes"):
+                raise InputError("Cancelled creating an alias.")
+        elif new_alias in languages:
             raise InputError(f"`{new_alias}` is already a language.")
         if language not in languages:
             raise InputError(f"Invalid language: `{language}`")
