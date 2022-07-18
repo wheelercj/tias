@@ -1,15 +1,15 @@
-from aliases import create_alias
-from aliases import delete_alias
-from aliases import load_aliases
-from errors import InputError
-from jargon import create_jargon
-from jargon import delete_jargon
-from jargon import has_jargon
-from jargon import init_jargon
-from jargon import print_jargon
-from jargon import wrap_jargon
-from multiline_input import get_lines
 from textwrap import dedent
+from tias.aliases import create_alias
+from tias.aliases import delete_alias
+from tias.aliases import load_aliases
+from tias.errors import InputError
+from tias.jargon import create_jargon
+from tias.jargon import delete_jargon
+from tias.jargon import has_jargon
+from tias.jargon import init_jargon
+from tias.jargon import print_jargon
+from tias.jargon import wrap_jargon
+from tias.multiline_input import get_lines
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -21,7 +21,7 @@ import sqlite3
 import sys
 
 
-VERSION = "0.4.2"
+VERSION = "0.4.3"
 
 
 def init_argparse() -> argparse.ArgumentParser:
@@ -332,10 +332,3 @@ async def unwrap_code_block(statement: str) -> Tuple[str, str]:
     if statement.endswith("\n"):
         statement = statement[:-1]
     return statement, suffix
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\nKeyboardInterrupt")

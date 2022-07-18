@@ -1,6 +1,6 @@
-from errors import InputError
-from multiline_input import get_lines
 from textwrap import dedent
+from tias.errors import InputError
+from tias.multiline_input import get_lines
 from typing import Dict
 from typing import Tuple
 import sqlite3
