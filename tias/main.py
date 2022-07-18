@@ -21,7 +21,7 @@ import sqlite3
 import sys
 
 
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 
 
 def init_argparse() -> argparse.ArgumentParser:
