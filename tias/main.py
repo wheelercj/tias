@@ -91,10 +91,10 @@ async def parse_choice(
             inputs,
         )
     elif choice == "list" or choice.startswith("list "):
-        filter_prefix = ""
+        filter_keyword = ""
         if choice.startswith("list "):
-            filter_prefix = choice.replace("list ", "").strip()
-        await list_languages(languages, aliases, filter_prefix)
+            filter_keyword = choice.replace("list ", "").strip()
+        await list_languages(languages, aliases, filter_keyword)
     elif choice.startswith("jargon "):
         language = choice.replace("jargon ", "").strip()
         if language not in languages:
@@ -234,8 +234,8 @@ async def print_help() -> None:
                 Selects a language and then asks you for code to run.
             list
                 Shows all supported languages.
-            list \x1b[90;3m(prefix)\x1b[0m
-                Shows all supported languages that start with a chosen prefix.
+            list \x1b[90;3m(search term)\x1b[0m
+                Shows all supported languages that contain a chosen search term.
             jargon \x1b[90;3m(language)\x1b[0m
                 Shows the code that can wrap around your code in a chosen language.
             create jargon \x1b[90;3m(language)\x1b[0m
@@ -255,15 +255,15 @@ async def print_help() -> None:
 
 
 async def list_languages(
-    valid_languages: List[str], aliases: Dict[str, str], filter_prefix: str
+    valid_languages: List[str], aliases: Dict[str, str], filter_keyword: str
 ) -> None:
-    """Lists supported languages, optionally filtered by a prefix."""
-    if filter_prefix:
+    """Lists supported languages, optionally filtered with a search term."""
+    if filter_keyword:
         valid_languages = list(
-            filter(lambda s: s.startswith(filter_prefix), valid_languages)
+            filter(lambda s: filter_keyword in s, valid_languages)
         )
         lang_count = len(valid_languages)
-        print(end=f"languages that start with `{filter_prefix}` ({lang_count}): ")
+        print(end=f"languages that contain `{filter_keyword}` ({lang_count}): ")
     else:
         print(end=f"languages ({len(valid_languages) - len(aliases)}): ")
     valid_languages = sorted(valid_languages)
