@@ -71,6 +71,8 @@ async def parse_choice(
         await print_help()
     elif choice == "exit":
         sys.exit(0)
+    elif choice == "":
+        return
     elif choice.startswith("run "):
         language = choice.replace("run ", "").strip()
         if language not in languages:
