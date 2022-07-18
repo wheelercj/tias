@@ -28,7 +28,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         usage="%(prog)s [OPTION]",
         description="Quickly run code in almost any language.",
-        epilog="For tips, the source code, discussions, and more, visit https://github.com/wheelercj/run-quick",
+        epilog="For tips, the source code, discussions, and more, visit https://github.com/wheelercj/tias",
     )
     parser.add_argument("-v", "--version", action="version", version=f"v{VERSION}")
     return parser
@@ -43,7 +43,7 @@ def main() -> None:
 async def amain(loop) -> None:
     connector = aiohttp.TCPConnector(force_close=True)
     async with aiohttp.ClientSession(connector=connector) as session:
-        db_file_name = "run-quick database.db"
+        db_file_name = "tias.db"
         aliases: Dict[str, str] = await load_aliases(db_file_name)
         languages: List[str] = await load_languages(
             loop, session, db_file_name, aliases
@@ -51,7 +51,7 @@ async def amain(loop) -> None:
         await init_jargon(db_file_name)
         while True:
             try:
-                choice = input("\x1b[32mrq> \x1b[39m").lower().strip()
+                choice = input("\x1b[32mtias> \x1b[39m").lower().strip()
                 await parse_choice(
                     loop, session, db_file_name, languages, aliases, choice
                 )
@@ -246,7 +246,7 @@ async def print_help() -> None:
                 Creates a new alias for a chosen language.
             delete alias \x1b[90;3m(alias)\x1b[0m
                 Deletes an alias and any jargon it has.
-            For more help, visit https://github.com/wheelercj/run-quick\
+            For more help, visit https://github.com/wheelercj/tias\
             """
         )
     )

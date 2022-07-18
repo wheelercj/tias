@@ -1,4 +1,4 @@
-run-quick database.db
+tias.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
