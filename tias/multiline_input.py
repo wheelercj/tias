@@ -20,9 +20,9 @@ class Input:
 
 def get_lines() -> str:
     print(end="\x1b[90m(")
-    if platform == "darwin":
-        print(end="cmd")
-    else:
+    if platform.system().lower() == "windows":
         print(end="ctrl")
+    else:
+        print(end="cmd")
     print("+enter to submit)\x1b[39m")
     return Input().get_lines()
