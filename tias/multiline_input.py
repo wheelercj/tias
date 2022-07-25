@@ -1,5 +1,6 @@
-import keyboard  # https://pypi.org/project/keyboard/
 import platform
+
+import keyboard  # https://pypi.org/project/keyboard/
 
 
 class Input:

@@ -1,6 +1,6 @@
+import sqlite3
 from typing import Dict
 from typing import List
-import sqlite3
 
 
 async def create_aliases_table(db_file_name: str) -> Dict[str, str]:

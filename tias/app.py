@@ -1,4 +1,15 @@
+import argparse
+import asyncio
+import sqlite3
+import sys
 from textwrap import dedent
+from typing import Dict
+from typing import List
+from typing import Tuple
+
+import aiohttp  # https://docs.aiohttp.org/en/stable/
+import async_tio  # https://pypi.org/project/async-tio/
+
 from tias.aliases import create_alias
 from tias.aliases import delete_alias
 from tias.aliases import load_aliases
@@ -10,15 +21,6 @@ from tias.jargon import init_jargon
 from tias.jargon import print_jargon
 from tias.jargon import wrap_jargon
 from tias.multiline_input import get_lines
-from typing import Dict
-from typing import List
-from typing import Tuple
-import aiohttp  # https://docs.aiohttp.org/en/stable/
-import argparse
-import async_tio  # https://pypi.org/project/async-tio/
-import asyncio
-import sqlite3
-import sys
 
 
 VERSION = "0.4.3"
@@ -45,16 +47,12 @@ async def amain() -> None:
     async with aiohttp.ClientSession(connector=connector) as session:
         db_file_name = "tias.db"
         aliases: Dict[str, str] = await load_aliases(db_file_name)
-        languages: List[str] = await load_languages(
-            session, db_file_name, aliases
-        )
+        languages: List[str] = await load_languages(session, db_file_name, aliases)
         await init_jargon(db_file_name)
         while True:
             try:
                 choice = input("\x1b[32mtias> \x1b[39m").lower().strip()
-                await parse_choice(
-                    session, db_file_name, languages, aliases, choice
-                )
+                await parse_choice(session, db_file_name, languages, aliases, choice)
             except InputError as e:
                 print(e)
 
@@ -257,9 +255,7 @@ async def list_languages(
 ) -> None:
     """Lists supported languages, optionally filtered with a search term."""
     if filter_keyword:
-        valid_languages = list(
-            filter(lambda s: filter_keyword in s, valid_languages)
-        )
+        valid_languages = list(filter(lambda s: filter_keyword in s, valid_languages))
         lang_count = len(valid_languages)
         print(end=f"languages that contain `{filter_keyword}` ({lang_count}): ")
     else:

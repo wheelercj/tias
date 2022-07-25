@@ -1,9 +1,10 @@
+import sqlite3
 from textwrap import dedent
-from tias.errors import InputError
-from tias.multiline_input import get_lines
 from typing import Dict
 from typing import Tuple
-import sqlite3
+
+from tias.errors import InputError
+from tias.multiline_input import get_lines
 
 
 async def init_jargon(db_file_name: str) -> None:
@@ -207,7 +208,7 @@ async def get_default_jargon() -> Dict[str, Tuple[str, str]]:
             dedent(
                 """\
                 namespace MyNamespace {
-                    class MyClass {         
+                    class MyClass {
                         static void Main(string[] args) {
                             INSERT_HERE
                         }
@@ -270,7 +271,7 @@ async def get_default_jargon() -> Dict[str, Tuple[str, str]]:
                 """\
                 #include <stdio.h>
                 // Print with the `puts` function, not `NSLog`.
-                
+
                 int main() {
                     INSERT_HERE
                 }\
