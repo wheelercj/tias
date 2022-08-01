@@ -23,7 +23,7 @@ from tias.jargon import wrap_jargon
 from tias.multiline_input import get_lines
 
 
-VERSION = "0.4.3"
+VERSION = "0.4.4"
 
 
 def init_argparse() -> argparse.ArgumentParser:
