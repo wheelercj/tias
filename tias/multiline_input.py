@@ -1,4 +1,5 @@
 import platform
+from typing import List
 
 import keyboard  # https://pypi.org/project/keyboard/
 
@@ -6,7 +7,7 @@ import keyboard  # https://pypi.org/project/keyboard/
 class Input:
     def __init__(self) -> None:
         self.receiving_input = True
-        self.lines = []
+        self.lines: List[str] = []
 
     def get_lines(self) -> str:
         keyboard.add_hotkey("ctrl+enter", self._toggle_receiving_input)

@@ -30,7 +30,8 @@ def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         usage="%(prog)s [OPTION]",
         description="Quickly run code in almost any language.",
-        epilog="For tips, the source code, discussions, and more, visit https://github.com/wheelercj/tias",
+        epilog="For tips, the source code, discussions, and more, visit"
+        " https://github.com/wheelercj/tias",
     )
     parser.add_argument("-v", "--version", action="version", version=f"v{VERSION}")
     return parser
@@ -181,14 +182,14 @@ async def save_languages(db_file_name: str, languages: List[str]) -> None:
 
 
 async def _save_languages(cursor, languages: List[str]) -> None:
-    languages = [[e] for e in languages]
+    language_lists = [[e] for e in languages]
     cursor.executemany(
         """
         INSERT OR IGNORE INTO languages
         (language)
         VALUES (?);
         """,
-        languages,
+        language_lists,
     )
 
 
@@ -266,8 +267,8 @@ async def list_languages(
         if language in aliases:
             alias_included = True
             valid_languages[i] = f"\x1b[36m{language}\x1b[0m"
-    valid_languages = ", ".join(valid_languages)
-    print(valid_languages)
+    valid_languages_s = ", ".join(valid_languages)
+    print(valid_languages_s)
     if alias_included:
         print("\x1b[90m(Aliases are shown in blue).\x1b[0m")
 
