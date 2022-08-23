@@ -23,7 +23,7 @@ from tias.jargon import wrap_jargon
 from tias.multiline_input import get_lines
 
 
-VERSION = "0.4.4"
+VERSION = "0.4.5"
 
 
 def init_argparse() -> argparse.ArgumentParser:
@@ -46,20 +46,21 @@ def main() -> None:
 async def amain() -> None:
     connector = aiohttp.TCPConnector(force_close=True)
     async with aiohttp.ClientSession(connector=connector) as session:
-        db_file_name = "tias.db"
-        aliases: Dict[str, str] = await load_aliases(db_file_name)
-        languages: List[str] = await load_languages(session, db_file_name, aliases)
-        await init_jargon(db_file_name)
-        while True:
-            try:
-                choice = input("\x1b[32mtias> \x1b[39m").lower().strip()
-                await parse_choice(session, db_file_name, languages, aliases, choice)
-            except InputError as e:
-                print(e)
+        async with async_tio.Tio(session=session) as tio:
+            db_file_name = "tias.db"
+            aliases: Dict[str, str] = await load_aliases(db_file_name)
+            languages: List[str] = await load_languages(tio, db_file_name, aliases)
+            await init_jargon(db_file_name)
+            while True:
+                try:
+                    choice = input("\x1b[32mtias> \x1b[39m").lower().strip()
+                    await parse_choice(tio, db_file_name, languages, aliases, choice)
+                except InputError as e:
+                    print(e)
 
 
 async def parse_choice(
-    session,
+    tio,
     db_file_name: str,
     languages: List[str],
     aliases: Dict[str, str],
@@ -79,7 +80,7 @@ async def parse_choice(
         if not code:
             raise InputError("Error: no code given to run.")
         await run_code(
-            session,
+            tio,
             db_file_name,
             languages,
             aliases,
@@ -156,9 +157,7 @@ async def parse_choice(
         raise InputError("Invalid input. Enter \x1b[100mhelp\x1b[0m for help.")
 
 
-async def load_languages(
-    session, db_file_name: str, aliases: Dict[str, str]
-) -> List[str]:
+async def load_languages(tio, db_file_name: str, aliases: Dict[str, str]) -> List[str]:
     """Loads all languages from the database.
 
     Creates the database with default languages if it doesn't exist. The
@@ -171,7 +170,7 @@ async def load_languages(
             languages: List[Tuple[str]] = cursor.fetchall()
             return [e[0] for e in languages]
     except sqlite3.OperationalError:
-        return await create_languages_table(session, db_file_name, aliases)
+        return await create_languages_table(tio, db_file_name, aliases)
 
 
 async def save_languages(db_file_name: str, languages: List[str]) -> None:
@@ -194,15 +193,14 @@ async def _save_languages(cursor, languages: List[str]) -> None:
 
 
 async def create_languages_table(
-    session, db_file_name: str, aliases: Dict[str, str]
+    tio, db_file_name: str, aliases: Dict[str, str]
 ) -> List[str]:
     """Creates a database table for and returns all languages.
 
     Assumes the table does not exist.
     """
-    async with async_tio.Tio(session=session) as tio:
-        languages: List[str] = [x.tio_name for x in await tio.get_languages()]
-        languages.extend(aliases.keys())
+    languages: List[str] = [x.tio_name for x in await tio.get_languages()]
+    languages.extend(aliases.keys())
     with sqlite3.connect(db_file_name) as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -288,7 +286,7 @@ async def get_code(
 
 
 async def run_code(
-    session,
+    tio,
     db_file_name: str,
     languages: List[str],
     aliases: Dict[str, str],
@@ -296,13 +294,12 @@ async def run_code(
     code: str,
     inputs: str,
 ) -> None:
-    async with async_tio.Tio(session=session) as tio:
-        temp_languages: List[str] = [x.tio_name for x in await tio.get_languages()]
-        if len(languages) - len(aliases) != len(temp_languages):
-            languages = temp_languages
-            languages.extend(aliases.keys())
-            await save_languages(db_file_name, languages)
-        response = await tio.execute(code, language=chosen_language, inputs=inputs)
+    temp_languages: List[str] = [x.tio_name for x in await tio.get_languages()]
+    if len(languages) - len(aliases) != len(temp_languages):
+        languages = temp_languages
+        languages.extend(aliases.keys())
+        await save_languages(db_file_name, languages)
+    response = await tio.execute(code, language=chosen_language, inputs=inputs)
     print(end=f"\x1b[32m`{chosen_language}` output:\x1b[39m\n{response.stdout}")
     if not response.stdout.endswith("\n"):
         print()
