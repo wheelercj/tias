@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import sqlite3
 import sys
+from contextlib import contextmanager
 from textwrap import dedent
 from typing import Dict
 from typing import List
@@ -23,7 +24,7 @@ from tias.jargon import wrap_jargon
 from tias.multiline_input import get_lines
 
 
-VERSION = "0.4.5"
+VERSION = "0.4.6"
 
 
 def init_argparse() -> argparse.ArgumentParser:
@@ -46,17 +47,34 @@ def main() -> None:
 async def amain() -> None:
     connector = aiohttp.TCPConnector(force_close=True)
     async with aiohttp.ClientSession(connector=connector) as session:
-        async with async_tio.Tio(session=session) as tio:
-            db_file_name = "tias.db"
-            aliases: Dict[str, str] = await load_aliases(db_file_name)
-            languages: List[str] = await load_languages(tio, db_file_name, aliases)
-            await init_jargon(db_file_name)
-            while True:
-                try:
-                    choice = input("\x1b[32mtias> \x1b[39m").lower().strip()
-                    await parse_choice(tio, db_file_name, languages, aliases, choice)
-                except InputError as e:
-                    print(e)
+        with suppress_stderr():
+            async with async_tio.Tio(session=session) as tio:
+                db_file_name = "tias.db"
+                aliases: Dict[str, str] = await load_aliases(db_file_name)
+                languages: List[str] = await load_languages(tio, db_file_name, aliases)
+                await init_jargon(db_file_name)
+                while True:
+                    try:
+                        choice = input("\x1b[32mtias> \x1b[39m").lower().strip()
+                        await parse_choice(
+                            tio, db_file_name, languages, aliases, choice
+                        )
+                    except InputError as e:
+                        print(e)
+
+
+@contextmanager
+def suppress_stderr():
+    "Suppresses writes to stderr"
+
+    class Null:
+        write = lambda *args: None  # noqa: E731
+
+    err, sys.stderr = sys.stderr, Null
+    try:
+        yield
+    finally:
+        sys.stderr = err
 
 
 async def parse_choice(
@@ -160,8 +178,8 @@ async def parse_choice(
 async def load_languages(tio, db_file_name: str, aliases: Dict[str, str]) -> List[str]:
     """Loads all languages from the database.
 
-    Creates the database with default languages if it doesn't exist. The
-    languages include the aliases.
+    Creates the database with default languages if it doesn't exist. The languages
+    include the aliases.
     """
     try:
         with sqlite3.connect(db_file_name) as conn:
@@ -309,9 +327,9 @@ async def run_code(
 async def unwrap_code_block(statement: str) -> Tuple[str, str]:
     """Removes triple backticks around a code block.
 
-    Returns the input unchanged and an empty string if there are no triple
-    backticks. Anything after closing triple backticks is returned as the
-    second string. Closing triple backticks are otherwise optional.
+    Returns the input unchanged and an empty string if there are no triple backticks.
+    Anything after closing triple backticks is returned as the second string. Closing
+    triple backticks are otherwise optional.
     """
     if not statement.startswith("```"):
         return statement, ""
