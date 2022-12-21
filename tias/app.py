@@ -322,6 +322,7 @@ async def run_code(
         languages = temp_languages
         languages.extend(aliases.keys())
         await save_languages(db_file_name, languages)
+    print("\x1b[90mRunning...\x1b[0m")
     response = await tio.execute(code, language=chosen_language, inputs=inputs)
     print(end=f"\x1b[32m`{chosen_language}` output:\x1b[39m\n{response.stdout}")
     if not response.stdout.endswith("\n"):
