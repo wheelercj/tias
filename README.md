@@ -4,7 +4,7 @@ Quickly run code in almost any language.
 
 ![tias demo](https://media.giphy.com/media/PF3RygFxDwe6OVbFBr/giphy.gif)
 
-Install with `pip install tias` (requires [Python](https://www.python.org/downloads/) 3.9 or newer). Run tias with `py -m tias` or `python3 -m tias`, or [make a custom terminal command](https://wheelercj.github.io/notes/pages/20220320181252.html).
+Install with `pip install tias` (requires [Python](https://www.python.org/downloads/) 3.9 or newer).
 
 ## reuse code
 
