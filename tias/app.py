@@ -96,7 +96,7 @@ async def parse_choice(
             raise InputError(f"Invalid language: `{language}`")
         language, code, inputs = await get_code(language, aliases, db_file_name)
         if not code:
-            raise InputError("Error: no code given to run.")
+            raise InputError("Error: no code was given to run.")
         await run_code(
             tio,
             db_file_name,
@@ -110,6 +110,11 @@ async def parse_choice(
         filter_keyword = ""
         if choice.startswith("list "):
             filter_keyword = choice.replace("list ", "").strip()
+        await list_languages(languages, aliases, filter_keyword)
+    elif choice == "ls" or choice.startswith("ls "):
+        filter_keyword = ""
+        if choice.startswith("ls "):
+            filter_keyword = choice.replace("ls ", "").strip()
         await list_languages(languages, aliases, filter_keyword)
     elif choice.startswith("jargon "):
         language = choice.replace("jargon ", "").strip()
